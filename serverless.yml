@@ -25,13 +25,19 @@ package:
    - ./bin/**
 
 functions:
-  options:
-    handler: bin/options
+  hoursStartOptions:
+    handler: bin/trigger-time-options
     events:
      - http:
          path: /ifttt/v1/triggers/lumo_hours/fields/hours_start/options
          method: post
 
+  hoursStopOptions:
+    handler: bin/trigger-time-options
+    events:
+     - http:
+         path: /ifttt/v1/triggers/lumo_hours/fields/hours_stop/options
+         method: post
 
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events

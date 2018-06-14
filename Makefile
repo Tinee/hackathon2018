@@ -1,3 +1,3 @@
 build:
 	dep ensure
-	env GOOS=linux go build -ldflags="-s -w" -o bin/options cmd/options/main.go
+	env GOOS=linux go build -ldflags="-s -w" -o bin/trigger-time-options cmd/trigger-time-options/main.go

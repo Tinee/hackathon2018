@@ -11,7 +11,7 @@ type Event struct {
 }
 
 func (e Event) AsResponseDetail() ResponseDetail {
-	return ResponseDetail{
+	resp := ResponseDetail{
 		IsOverLimit:     e.IsOverLimit,
 		CreatedAt:       e.CreatedAt.Format("2006-01-02T15:04:05.999999+01:00"),
 		GreenPercentage: e.GreenPercentage,
@@ -20,6 +20,10 @@ func (e Event) AsResponseDetail() ResponseDetail {
 			Timestamp: e.CreatedAt.Unix(),
 		},
 	}
+	if (e.CreatedAt == time.Time{}) {
+		resp.Meta.Timestamp = 0 // Hack so that IFTTT Doesn't complain
+	}
+	return resp
 }
 
 type MockData struct {

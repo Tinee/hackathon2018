@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/Tinee/hackathon2018/domain"
@@ -63,17 +65,20 @@ func (repo *mongoEventRepository) FindUnique(limit int) (*[]domain.Event, error)
 	defer s.Close()
 	coll := s.DB("").C(repo.collection)
 
+	log.Println("Getting find unique")
 	var results []domain.Event
-	err := coll.Find(nil).Distinct("tokenIdentity", &results)
+	err := coll.Find(bson.M{}).All(&results)
 
 	if err == mgo.ErrNotFound {
-		return nil, nil
+		fmt.Println("Not Found")
+		return nil, err
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
+	log.Print(results)
 	return &results, nil
 }
 
@@ -89,8 +94,8 @@ func (repo *mongoEventRepository) FindAllByTokenIdentityBefore(
 
 	var results []domain.Event
 	err := coll.Find(bson.M{
-		"tokenIdentity": tokenIdentity,
-		"createdAt":     bson.M{"$lt": endPeriod},
+		"triggerIdentity": tokenIdentity,
+		"createdAt":       bson.M{"$lt": endPeriod},
 	}).Limit(limit).All(&results)
 
 	if err == mgo.ErrNotFound {
@@ -116,7 +121,7 @@ func (repo *mongoEventRepository) FindAllByTokenIdentity(tokenIdentity string, l
 
 	var results []domain.Event
 	err := coll.Find(bson.M{
-		"tokenIdentity": tokenIdentity,
+		"triggerIdentity": tokenIdentity,
 	}).Limit(limit).All(&results)
 
 	if err == mgo.ErrNotFound {

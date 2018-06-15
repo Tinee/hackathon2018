@@ -3,11 +3,11 @@ package domain
 import "time"
 
 type Event struct {
-	ID              string `bson:"_id"`
-	TriggerIdentity string
-	IsOverLimit     bool
-	GreenPercentage float32
-	CreatedAt       time.Time
+	ID              string    `bson:"_id"`
+	TriggerIdentity string    `bson:"triggerIdentity"`
+	IsOverLimit     bool      `bson:"isOverLimit"`
+	GreenPercentage float32   `bson:"greenPercentage"`
+	CreatedAt       time.Time `bson:"createdAt"`
 }
 
 func (e Event) AsResponseDetail() ResponseDetail {
@@ -23,10 +23,10 @@ func (e Event) AsResponseDetail() ResponseDetail {
 }
 
 type MockData struct {
-	ID              string `bson:"_id"`
-	Now             time.Time
-	StartDataPeriod time.Time
-	EndDataPeriod   time.Time
+	ID              string    `bson:"_id"`
+	Now             time.Time `bson:"now"`
+	StartDataPeriod time.Time `bson:"startDataPeriod"`
+	EndDataPeriod   time.Time `bson:"endDataPeriod"`
 }
 
 // Response to IFTTT

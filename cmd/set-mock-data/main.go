@@ -55,7 +55,7 @@ func ConnectToDatabase(dbAddr string) (repository.MockDataRepository, repository
 	}
 
 	fmt.Println("Initialising Events Repo")
-	eventsRepo, err := repository.NewMongoEventsRespository(mongoClient, "mockData")
+	eventsRepo, err := repository.NewMongoEventsRespository(mongoClient, "events")
 	if err != nil {
 		fmt.Println(err)
 		return nil, nil, err
@@ -96,7 +96,9 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	b, err := json.Marshal(NewMockData{MockData: *mockData, IdsToUpdate: ids})
 
-	return events.APIGatewayProxyResponse{StatusCode: 200, Body: string(b)}, nil
+	return events.APIGatewayProxyResponse{StatusCode: 200, Body: string(b), Headers: map[string]string{
+		"Access-Control-Allow-Origin": "*",
+	}}, nil
 }
 
 func getUniqueTokenIdentifiers(eventsRepo repository.EventRepository) ([]string, error) {

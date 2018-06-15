@@ -19,7 +19,7 @@ func ValidateIFTTTRequest(e events.APIGatewayProxyRequest) *events.APIGatewayPro
 
 func validateServiceKey(key string) error {
 	if os.Getenv("IFTTT_SERVICE_KEY") == "" {
-		return errors.New("No environment variable specified when deploying this lambda")
+		return errors.New("No environment variabasdle specified when deploying this lambda")
 	}
 	if key == "" {
 		return errors.New("No Service Key Given, Instead Given")

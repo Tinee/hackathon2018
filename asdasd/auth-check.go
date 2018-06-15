@@ -12,7 +12,7 @@ func ValidateIFTTTRequest(e events.APIGatewayProxyRequest) *events.APIGatewayPro
 	log.Print(e.Headers)
 	err := validateServiceKey(e.Headers["Ifttt-Service-Key"])
 	if err != nil {
-		return &events.APIGatewayProxyResponse{Body: "{\"errors\": [\"" + err.Error() + "\"]}", StatusCode: 401}
+		return &events.APIGatewayProxyResponse{Body: "{\"errors\": [{\"message\": \"" + err.Error() + "\"}]}", StatusCode: 401}
 	}
 	return nil
 }

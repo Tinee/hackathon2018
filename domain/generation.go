@@ -4,6 +4,10 @@ type GenerationResult struct {
 	Data Data `json:"data"`
 }
 
+type GenerationSeriesResult struct {
+	Data []Data `json:"data"`
+}
+
 type Data struct {
 	From string          `json:"from"`
 	To   string          `json:"to"`

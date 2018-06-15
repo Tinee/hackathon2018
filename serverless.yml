@@ -20,6 +20,7 @@ provider:
   region: eu-west-2
   environment: 
     IFTTT_SERVICE_KEY: ${opt:ifttt}
+    DB_ADDR: ${opt:db}
 package:
  exclude:
    - ./**

@@ -67,7 +67,7 @@ func (repo *mongoEventRepository) FindUnique(limit int) (*[]domain.Event, error)
 
 	log.Println("Getting find unique")
 	var results []domain.Event
-	err := coll.Find(bson.M{}).All(&results)
+	err := coll.Find(bson.M{}).Distinct("triggerIdentity", results)
 
 	if err == mgo.ErrNotFound {
 		fmt.Println("Not Found")

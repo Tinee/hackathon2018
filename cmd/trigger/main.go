@@ -158,7 +158,9 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
 	}
 
-	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200}, nil
+	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: map[string]string{
+		"content-type": "application/json; charset=utf-8",
+	}}, nil
 }
 
 func main() {

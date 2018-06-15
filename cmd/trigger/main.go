@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/Tinee/hackathon2018/asdasd"
 	"github.com/Tinee/hackathon2018/domain"
 	"github.com/Tinee/hackathon2018/repository"
+	"github.com/Tinee/hackathon2018/service"
 	"github.com/globalsign/mgo"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -55,23 +55,6 @@ func (g Generationmixes) AggregateGreenEnergy() (res float32) {
 		}
 	}
 	return res
-}
-
-// WithHourMinute sets the hour and minute on a given Time
-func WithHourMinute(now time.Time, hmString string) (time.Time, error) {
-	hourStr := hmString[:2]
-	minuteStr := hmString[3:]
-
-	hour, err := strconv.Atoi(hourStr)
-	if err != nil {
-		return time.Time{}, err
-	}
-	minute, err := strconv.Atoi(minuteStr)
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	return time.Date(now.Year(), now.Month(), now.Day(), hour, minute, now.Second(), now.Nanosecond(), now.Location()), nil
 }
 
 // Temp empty response
@@ -149,31 +132,25 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
 	}
 
-	now := time.Now()
 	var req Request
 	err := json.Unmarshal([]byte(e.Body), &req)
 	if err != nil {
 		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
 	}
 
-	tos := req.Triggers.To
-	froms := req.Triggers.From
+	to := req.Triggers.To
+	from := req.Triggers.From
 	limit := req.Triggers.Limit
 	token := req.Triggers.Token
 
-	from, err := WithHourMinute(now, froms)
+	// Handle trigger Window
+	inTriggerWindow, err := service.InTriggerWindow(from, to)
 	if err != nil {
-		fmt.Printf("Could not parse from  %s %s\n", froms, err)
+		fmt.Printf("Error when determining if inside error window %s\n", err)
 		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
 	}
 
-	to, err := WithHourMinute(now, tos)
-	if err != nil {
-		fmt.Printf("Could not parse to  %s %s\n", tos, err)
-		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
-	}
-
-	if now.Before(from) || now.After(to) {
+	if !inTriggerWindow {
 		fmt.Println("Exiting early outside of range")
 		body, _ := EmptyResponse()
 
@@ -181,6 +158,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 			"content-type": "application/json; charset=utf-8",
 		}}, nil
 	}
+	//
 
 	repo, err := ConnectToDatabase(os.Getenv("DB_ADDR"))
 	if err != nil {

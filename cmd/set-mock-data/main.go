@@ -56,7 +56,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	var req domain.MockData
 	err := json.Unmarshal([]byte(e.Body), &req)
-
+	fmt.Println("Unmarshalled")
 	if err != nil {
 		return events.APIGatewayProxyResponse{StatusCode: 400, Body: "\"" + err.Error() + "\""}, nil
 	}
@@ -66,12 +66,14 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	if err != nil {
 		return events.APIGatewayProxyResponse{StatusCode: 400, Body: "\"" + err.Error() + "\""}, nil
 	}
+	fmt.Println("Connected to DB")
 
 	mockData, err := mockDataRepo.Set(req)
 
 	if err != nil {
 		return events.APIGatewayProxyResponse{StatusCode: 500, Body: "\"" + err.Error() + "\""}, nil
 	}
+	fmt.Println("Set Mock Data")
 
 	b, err := json.Marshal(mockData)
 

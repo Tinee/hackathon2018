@@ -2,16 +2,6 @@
 
 
 [[projects]]
-  branch = "master"
-  name = "github.com/Tinee/hackathon2018"
-  packages = [
-    "asdasd",
-    "domain",
-    "repository"
-  ]
-  revision = "9a055ae9bd8873f4ca3a40f72395e96ade6b5691"
-
-[[projects]]
   name = "github.com/aws/aws-lambda-go"
   packages = [
     "events",
@@ -37,6 +27,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6293d08439835aced867d4bf3e6ac077a4384cce18991c0cb1456aaeb1ed1c8a"
+  inputs-digest = "da0241b9c9434321add846135d9e42c83dff78257edbf9da2562f73dd81fa377"
   solver-name = "gps-cdcl"
   solver-version = 1

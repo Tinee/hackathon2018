@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"log"
+
 	"github.com/Tinee/hackathon2018/domain"
 	"github.com/globalsign/mgo/bson"
 )
@@ -34,12 +36,14 @@ func (repo *mongoMockDataRepository) Set(mockData domain.MockData) (*domain.Mock
 	coll := s.DB("").C(repo.collection)
 
 	coll.DropCollection()
+	log.Print("Dropped collection")
 	mockData.ID = bson.NewObjectId().String()
 	err := coll.Insert(mockData)
 
 	if err != nil {
 		return nil, err
 	}
+	log.Print("Inserted")
 	return &mockData, nil
 }
 

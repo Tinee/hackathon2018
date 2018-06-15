@@ -33,7 +33,6 @@ func BuildTestResponse(hoursStart, hoursStop string) ([]byte, error) {
 }
 
 func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-
 	errResp := auth.ValidateIFTTTRequest(e)
 	if errResp != nil {
 		return *errResp, nil

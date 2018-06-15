@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/Tinee/hackathon2018/asdasd"
 	"github.com/Tinee/hackathon2018/domain"
@@ -27,17 +26,7 @@ type Request struct {
 func EmptyResponse() ([]byte, error) {
 
 	return json.Marshal(domain.Response{
-		Data: []domain.ResponseDetail{
-			domain.ResponseDetail{
-				IsOverLimit:     false,
-				GreenPercentage: 0.0,
-				CreatedAt:       time.Now().UTC().Format(time.RFC3339),
-				Meta: domain.Meta{
-					Id:        "14b9-1fd2-acaa-5df5",
-					Timestamp: time.Now().Unix(),
-				},
-			},
-		},
+		Data: []domain.ResponseDetail{},
 	})
 }
 
@@ -66,7 +55,28 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	limit := req.Triggers.Limit
 	token := req.Triggers.Token
 
-	// Handle trigger Window
+	// If there are events in the DB then return those
+	existingEvents, err := service.ExistingEvents(token, limit)
+	if err != nil {
+		fmt.Printf("Error getting the existing events %s\n", err)
+		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
+	}
+
+	fmt.Println(existingEvents)
+
+	if len(existingEvents) != 0 {
+		body, err := BuildResponse(existingEvents)
+		if err != nil {
+			fmt.Printf("Failed to build response %s\n", err)
+			return events.APIGatewayProxyResponse{StatusCode: 500}, nil
+		}
+
+		return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: map[string]string{
+			"content-type": "application/json; charset=utf-8",
+		}}, nil
+	}
+
+	// If no existing events and outside window then return an empty array
 	inTriggerWindow, err := service.InTriggerWindow(from, to)
 	if err != nil {
 		fmt.Printf("Error when determining if inside error window %s\n", err)
@@ -81,40 +91,35 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 			"content-type": "application/json; charset=utf-8",
 		}}, nil
 	}
-	//
 
-	existingEvents, err := service.ExistingEvents(token, limit)
+	// Otherwise lookup the generation
+	aggregation, err := service.LookupGreenEnergyPercentage()
 	if err != nil {
-		fmt.Printf("Error getting the existing events %s\n", err)
+		fmt.Printf("Error when Looking up green energy percentage %s\n", err)
 		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
 	}
 
-	fmt.Println(existingEvents)
+	isHigher := aggregation > 30.0
 
-	body, err := BuildResponse(existingEvents)
+	responseDetail, err := service.SaveNewEvent(token, isHigher, aggregation)
+	if err != nil {
+		fmt.Printf("Error Saving the new event %s\n", err)
+		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
+	}
+
+	// TODO nicer??
+	details := make([]domain.ResponseDetail, 1)
+	details[0] = responseDetail
+
+	body, err := BuildResponse(details)
 	if err != nil {
 		fmt.Printf("Failed to build response %s\n", err)
 		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
 	}
 
-	// QUICK
 	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: map[string]string{
 		"content-type": "application/json; charset=utf-8",
 	}}, nil
-
-	// aggregation := service.LookupGreenEnergyPercentage
-
-	// isHigher := aggregation > 30.0
-
-	// body, err := BuildResponse(isHigher, aggregation)
-	// if err != nil {
-	// 	fmt.Printf("The HTTP request failed with error %s\n", err)
-	// 	return events.APIGatewayProxyResponse{StatusCode: 500}, nil
-	// }
-
-	// return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: map[string]string{
-	// 	"content-type": "application/json; charset=utf-8",
-	// }}, nil
 }
 
 func main() {

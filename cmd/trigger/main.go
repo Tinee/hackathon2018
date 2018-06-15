@@ -27,6 +27,13 @@ type Generationmix struct {
 	Percentage float32 `json:"perc"`
 }
 
+type Request struct {
+	triggers struct {
+		from string `json:"hours_start"`
+		to   string `json:"hours_stop"`
+	} `json:"triggerFields"`
+}
+
 type Generationmixes []Generationmix
 
 func (g Generationmixes) AggregateGreenEnergy() (res float32) {
@@ -60,22 +67,21 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	now := time.Now()
 	fmt.Println(now)
+	var req Request
+	err := json.Unmarshal([]byte(e.Body), &req)
 
-	// To take from args
-	fromString := "00:30"
-	toString := "14:30"
+	tos := req.triggers.to
+	froms := req.triggers.from
 
-	from, err := WithHourMinute(now, fromString)
+	from, err := WithHourMinute(now, froms)
 	if err != nil {
-		fmt.Printf("Could not parse from  %s %s\n", fromString, err)
-		// Exit early here
+		fmt.Printf("Could not parse from  %s %s\n", froms, err)
 		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
 	}
 
-	to, err := WithHourMinute(now, toString)
+	to, err := WithHourMinute(now, tos)
 	if err != nil {
-		fmt.Printf("Could not parse to  %s %s\n", toString, err)
-		// Exit early here
+		fmt.Printf("Could not parse to  %s %s\n", tos, err)
 		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
 	}
 

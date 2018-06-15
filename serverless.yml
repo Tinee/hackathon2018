@@ -18,6 +18,8 @@ provider:
 
   stage: dev
   region: eu-west-2
+  environment: 
+    IFTTT_KEY: ${opt:iftttkey}
 package:
  exclude:
    - ./**
@@ -25,6 +27,13 @@ package:
    - ./bin/**
 
 functions:
+
+  status:
+    handler: bin/status
+    events:
+     - http:
+         path: /ifttt/v1/status
+         method: post
 
   hours:
     handler: bin/trigger

@@ -38,7 +38,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		return *errResp, nil
 	}
 
-	resp, _ := BuildTestResponse("22:00", "23:30")
+	resp, _ := BuildTestResponse("04:00", "23:30")
 	output := string(resp)
 	log.Print(output)
 	return events.APIGatewayProxyResponse{Body: output, StatusCode: 200, Headers: map[string]string{

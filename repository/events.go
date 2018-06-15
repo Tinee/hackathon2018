@@ -3,21 +3,14 @@ package repository
 import (
 	"time"
 
+	"github.com/Tinee/hackathon2018/domain"
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 )
 
-type Event struct {
-	ID              string
-	triggerIdentity string
-	isOverLimit     bool
-	greenPercentage float32
-	CreatedAt       time.Time
-}
-
 type EventRepository interface {
-	Insert(event Event) (*Event, error)
-	FindAllByTokenIdentity(token string, limit int) (*[]Event, error)
+	Insert(event domain.Event) (*domain.Event, error)
+	FindAllByTokenIdentity(token string, limit int) (*[]domain.Event, error)
 }
 
 type mongoEventRepository struct {
@@ -46,7 +39,7 @@ func NewMongoEventsRespository(client *mongoClient, collection string) (EventRep
 	return repo, nil
 }
 
-func (repo *mongoEventRepository) Insert(event Event) (*Event, error) {
+func (repo *mongoEventRepository) Insert(event domain.Event) (*domain.Event, error) {
 
 	s := repo.client.session.Copy()
 	defer s.Close()
@@ -62,17 +55,17 @@ func (repo *mongoEventRepository) Insert(event Event) (*Event, error) {
 	return &event, nil
 }
 
-func (repo *mongoEventRepository) FindAllByTokenIdentity(tokenIdentity string, limit int) (*[]Event, error) {
+func (repo *mongoEventRepository) FindAllByTokenIdentity(tokenIdentity string, limit int) (*[]domain.Event, error) {
 
 	if limit == 0 {
-		limit = 49
+		limit = 50
 	}
 
 	s := repo.client.session.Copy()
 	defer s.Close()
 	coll := s.DB("").C(repo.collection)
 
-	var results []Event
+	var results []domain.Event
 	err := coll.Find(bson.M{
 		"tokenIdentity": tokenIdentity,
 	}).All(&results)

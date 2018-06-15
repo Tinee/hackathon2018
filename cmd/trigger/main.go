@@ -17,10 +17,10 @@ import (
 type Request struct {
 	TriggerIdentity string `json:"trigger_identity"`
 	Triggers        struct {
-		From  string `json:"hours_start"`
-		To    string `json:"hours_stop"`
-		Limit int    `json:"limit"`
+		From string `json:"hours_start"`
+		To   string `json:"hours_stop"`
 	} `json:"triggerFields"`
+	Limit int `json:"limit"`
 }
 
 // Temp empty response
@@ -57,12 +57,14 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	}
 
 	req := Request{}
-	req.Triggers.Limit = -1
+	req.Limit = -1
 
 	err := json.Unmarshal([]byte(e.Body), &req)
 	if err != nil {
 		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
 	}
+
+	fmt.Printf("Limit is %s", req.Limit)
 
 	fmt.Println("Validating request")
 	to := req.Triggers.To
@@ -81,7 +83,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		return ErrorResponse(err), nil
 	}
 
-	limit := req.Triggers.Limit
+	limit := req.Limit
 
 	if limit == 0 {
 		fmt.Println("Limit is actually 0 exiting early")

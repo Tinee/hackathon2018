@@ -3,11 +3,23 @@ package domain
 import "time"
 
 type Event struct {
-	ID              string
-	triggerIdentity string
-	isOverLimit     bool
-	greenPercentage float32
+	ID              string `bson:"_id"`
+	TriggerIdentity string
+	IsOverLimit     bool
+	GreenPercentage float32
 	CreatedAt       time.Time
+}
+
+func (e Event) asResponseDetail() ResponseDetail {
+	return ResponseDetail{
+		IsOverLimit:     e.IsOverLimit,
+		CreatedAt:       e.CreatedAt.Format("2006-01-02T15:04:05.999999+01:00"),
+		GreenPercentage: e.GreenPercentage,
+		Meta: Meta{
+			Id:        e.ID,
+			Timestamp: e.CreatedAt.Unix(),
+		},
+	}
 }
 
 // Response to IFTTT
@@ -24,5 +36,5 @@ type ResponseDetail struct {
 
 type Meta struct {
 	Id        string `json:"id"`
-	Timestamp int    `json:"timestamp"`
+	Timestamp int64  `json:"timestamp"`
 }

@@ -33,7 +33,7 @@ functions:
     events:
      - http:
          path: /ifttt/v1/status
-         method: 
+         method: get
 
   test-setup:
     handler: bin/test-setup

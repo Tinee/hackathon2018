@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/Tinee/hackathon2018/asdasd"
@@ -41,7 +42,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	errr := auth.ValidateIFTTTRequest(e)
 	if errr != nil {
-		return events.APIGatewayProxyResponse{StatusCode: 401}, nil
+		return *errr, nil
 	}
 
 	var req Request
@@ -51,9 +52,31 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	}
 
 	to := req.Triggers.To
+	if to == "" {
+		err = errors.New("Missing to")
+		return events.APIGatewayProxyResponse{
+			Body:       "{\"errors\": [{\"message\": \"" + err.Error() + "\"}]}",
+			StatusCode: 400,
+		}, nil
+	}
 	from := req.Triggers.From
-	limit := req.Triggers.Limit
+	if from == "" {
+		err = errors.New("Missing from")
+		return events.APIGatewayProxyResponse{
+			Body:       "{\"errors\": [{\"message\": \"" + err.Error() + "\"}]}",
+			StatusCode: 400,
+		}, nil
+	}
 	triggerIdentity := req.Triggers.TriggerIdentity
+	if triggerIdentity == "" {
+		err = errors.New("Missing triggerIdentity")
+		return events.APIGatewayProxyResponse{
+			Body:       "{\"errors\": [{\"message\": \"" + err.Error() + "\"}]}",
+			StatusCode: 400,
+		}, nil
+	}
+
+	limit := req.Triggers.Limit
 	fmt.Printf("triggerIdentity: %s\n", triggerIdentity)
 
 	// If there are events in the DB then return those

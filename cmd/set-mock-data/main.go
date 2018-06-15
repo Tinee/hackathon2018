@@ -17,10 +17,15 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-func ConnectToDatabase(dbAddr string) (repository.MockDataRepository, error) {
+type NewMockData struct {
+	MockData    domain.MockData
+	IdsToUpdate []string
+}
+
+func ConnectToDatabase(dbAddr string) (repository.MockDataRepository, repository.EventRepository, error) {
 	if dbAddr == "" {
 		fmt.Println("No DB_ADDR provided")
-		return nil, errors.New("No DB_ADDR provided")
+		return nil, nil, errors.New("No DB_ADDR provided")
 	}
 
 	fmt.Println("Connecting to DB")
@@ -28,7 +33,7 @@ func ConnectToDatabase(dbAddr string) (repository.MockDataRepository, error) {
 	dialInfo, err := mgo.ParseURL(dbAddr)
 	if err != nil {
 		fmt.Println(err)
-		return nil, err
+		return nil, nil, err
 	}
 	dialInfo.Timeout = 30 * time.Second
 
@@ -39,17 +44,24 @@ func ConnectToDatabase(dbAddr string) (repository.MockDataRepository, error) {
 	mongoClient, err := repository.NewMongoClient(dialInfo)
 	if err != nil {
 		fmt.Println(err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	fmt.Println("Initialising MockData Repo")
 	mockDataRepo, err := repository.NewMongoMockDataRespository(mongoClient, "mockData")
 	if err != nil {
 		fmt.Println(err)
-		return nil, err
+		return nil, nil, err
 	}
 
-	return mockDataRepo, nil
+	fmt.Println("Initialising Events Repo")
+	eventsRepo, err := repository.NewMongoEventsRespository(mongoClient, "mockData")
+	if err != nil {
+		fmt.Println(err)
+		return nil, nil, err
+	}
+
+	return mockDataRepo, eventsRepo, nil
 }
 
 func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -61,7 +73,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		return events.APIGatewayProxyResponse{StatusCode: 400, Body: "\"" + err.Error() + "\""}, nil
 	}
 
-	mockDataRepo, err := ConnectToDatabase(os.Getenv("DB_ADDR"))
+	mockDataRepo, eventsRepo, err := ConnectToDatabase(os.Getenv("DB_ADDR"))
 
 	if err != nil {
 		return events.APIGatewayProxyResponse{StatusCode: 400, Body: "\"" + err.Error() + "\""}, nil
@@ -73,11 +85,30 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	if err != nil {
 		return events.APIGatewayProxyResponse{StatusCode: 500, Body: "\"" + err.Error() + "\""}, nil
 	}
+
 	fmt.Println("Set Mock Data")
 
-	b, err := json.Marshal(mockData)
+	ids, err := getUniqueTokenIdentifiers(eventsRepo)
+
+	if err != nil {
+		return events.APIGatewayProxyResponse{StatusCode: 500, Body: "\"" + err.Error() + "\""}, nil
+	}
+
+	b, err := json.Marshal(NewMockData{MockData: *mockData, IdsToUpdate: ids})
 
 	return events.APIGatewayProxyResponse{StatusCode: 200, Body: string(b)}, nil
+}
+
+func getUniqueTokenIdentifiers(eventsRepo repository.EventRepository) ([]string, error) {
+	uniqueEvents, err := eventsRepo.FindUnique(1000)
+	if err != nil {
+		return nil, err
+	}
+	var uniqueTokenIdentifiers []string
+	for _, element := range *uniqueEvents {
+		uniqueTokenIdentifiers = append(uniqueTokenIdentifiers, element.TriggerIdentity)
+	}
+	return uniqueTokenIdentifiers, nil
 }
 
 func main() {

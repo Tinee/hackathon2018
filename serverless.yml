@@ -29,6 +29,13 @@ package:
 
 functions:
 
+  set-mock-data:
+    handler: bin/set-mock-data
+    events:
+     - http:
+         path: /set-mock-data
+         method: post
+
   status:
     handler: bin/status
     events:

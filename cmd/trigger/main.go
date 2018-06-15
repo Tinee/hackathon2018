@@ -16,20 +16,20 @@ import (
 
 // Request from IFTTT
 type Request struct {
-	triggers struct {
-		from string `json:"hours_start"`
-		to   string `json:"hours_stop"`
+	Triggers struct {
+		From string `json:"hours_start"`
+		To   string `json:"hours_stop"`
 	} `json:"triggerFields"`
 }
 
 // Response to IFTTT
 type Response struct {
-	data []ResponseDetail `json:"data"`
+	Data []ResponseDetail `json:"data"`
 }
 
 type ResponseDetail struct {
-	isOverLimit     bool    `json:"isOverLimit"`
-	greenPercentage float32 `json:"greenPercentage"`
+	IsOverLimit     bool    `json:"isOverLimit"`
+	GreenPercentage float32 `json:"greenPercentage"`
 }
 
 type Result struct {
@@ -80,10 +80,10 @@ func WithHourMinute(now time.Time, hmString string) (time.Time, error) {
 // BuildResponse builds response to IFTTT
 func BuildResponse(isOverLimit bool, greenPercentage float32) ([]byte, error) {
 	return json.Marshal(Response{
-		data: []ResponseDetail{
+		Data: []ResponseDetail{
 			ResponseDetail{
-				isOverLimit:     isOverLimit,
-				greenPercentage: greenPercentage,
+				IsOverLimit:     isOverLimit,
+				GreenPercentage: greenPercentage,
 			},
 		},
 	})
@@ -103,11 +103,15 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	now := time.Now()
 	var req Request
 	err := json.Unmarshal([]byte(e.Body), &req)
+	if err != nil {
+		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
+	}
 
-	tos := req.triggers.to
-	froms := req.triggers.from
-	fmt.Println(froms)
-	fmt.Println(tos)
+	tos := req.Triggers.To
+	froms := req.Triggers.From
+
+	fmt.Println("hejxsan", froms)
+	fmt.Println("hejsxan", tos)
 
 	from, err := WithHourMinute(now, froms)
 	if err != nil {
@@ -144,17 +148,17 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
 	}
 
-	// aggregation := result.Data.Mix.AggregateGreenEnergy()
+	aggregation := result.Data.Mix.AggregateGreenEnergy()
 
-	// isHigher := aggregation > 30.0
+	isHigher := aggregation > 30.0
 
-	// body, err := BuildResponse(isHigher, aggregation)
+	body, err := BuildResponse(isHigher, aggregation)
 	if err != nil {
 		fmt.Printf("The HTTP request failed with error %s\n", err)
 		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
 	}
 
-	return events.APIGatewayProxyResponse{Body: "hejsan", StatusCode: 200}, nil
+	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200}, nil
 }
 
 func main() {

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Tinee/hackathon18lumohours/auth"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
@@ -89,6 +91,9 @@ func BuildResponse(isOverLimit bool, greenPercentage float32) ([]byte, error) {
 
 func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	fmt.Println("Starting the application...")
+	if errResp := auth.ValidateIFTTTRequest(e); errResp != nil {
+		return *errResp, nil
+	}
 
 	now := time.Now()
 	fmt.Println(now)

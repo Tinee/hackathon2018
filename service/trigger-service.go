@@ -79,6 +79,29 @@ func LookupGreenEnergyPercentage() (float32, error) {
 	return result.Data.Mix.AggregateGreenEnergy(), nil
 }
 
+func SaveNewEvent(triggerIdentity string, isOverLimit bool, greenPercentage float32) (domain.ResponseDetail, error) {
+	event := domain.Event{
+		TriggerIdentity: triggerIdentity,
+		IsOverLimit:     isOverLimit,
+		GreenPercentage: greenPercentage,
+		CreatedAt:       time.Now(),
+	}
+
+	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
+	if err != nil {
+		fmt.Printf("DB connection failure %s\n", err)
+		return domain.ResponseDetail{}, err
+	}
+
+	saved, err := repo.Insert(event)
+	if err != nil {
+		fmt.Printf("Error Inserting into DB %s\n", err)
+		return domain.ResponseDetail{}, err
+	}
+
+	return saved.AsResponseDetail(), nil
+}
+
 // Privates
 
 func connectToDatabase(dbAddr string) (repository.EventRepository, error) {

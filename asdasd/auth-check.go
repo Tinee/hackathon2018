@@ -2,14 +2,12 @@ package auth
 
 import (
 	"errors"
-	"log"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
 )
 
 func ValidateIFTTTRequest(e events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
-	log.Print(e.Headers)
 	err := validateServiceKey(e.Headers["Ifttt-Service-Key"])
 	if err != nil {
 		return &events.APIGatewayProxyResponse{

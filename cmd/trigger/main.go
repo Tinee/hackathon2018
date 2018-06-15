@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/Tinee/hackathon2018/asdasd"
@@ -15,10 +16,10 @@ import (
 // Request from IFTTT
 type Request struct {
 	Triggers struct {
-		Token string `json:"trigger_identity"`
-		From  string `json:"hours_start"`
-		To    string `json:"hours_stop"`
-		Limit int    `json:"limit"`
+		TriggerIdentity string `json:"trigger_identity"`
+		From            string `json:"hours_start"`
+		To              string `json:"hours_stop"`
+		Limit           int    `json:"limit"`
 	} `json:"triggerFields"`
 }
 
@@ -41,7 +42,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	errr := auth.ValidateIFTTTRequest(e)
 	if errr != nil {
-		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
+		return *errr, nil
 	}
 
 	var req Request
@@ -51,12 +52,35 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	}
 
 	to := req.Triggers.To
+	if to == "" {
+		err = errors.New("Missing to")
+		return events.APIGatewayProxyResponse{
+			Body:       "{\"errors\": [{\"message\": \"" + err.Error() + "\"}]}",
+			StatusCode: 400,
+		}, nil
+	}
 	from := req.Triggers.From
+	if from == "" {
+		err = errors.New("Missing from")
+		return events.APIGatewayProxyResponse{
+			Body:       "{\"errors\": [{\"message\": \"" + err.Error() + "\"}]}",
+			StatusCode: 400,
+		}, nil
+	}
+	triggerIdentity := req.Triggers.TriggerIdentity
+	if triggerIdentity == "" {
+		err = errors.New("Missing triggerIdentity")
+		return events.APIGatewayProxyResponse{
+			Body:       "{\"errors\": [{\"message\": \"" + err.Error() + "\"}]}",
+			StatusCode: 400,
+		}, nil
+	}
+
 	limit := req.Triggers.Limit
-	token := req.Triggers.Token
+	fmt.Printf("triggerIdentity: %s\n", triggerIdentity)
 
 	// If there are events in the DB then return those
-	existingEvents, err := service.ExistingEvents(token, limit)
+	existingEvents, err := service.ExistingEvents(triggerIdentity, limit)
 	if err != nil {
 		fmt.Printf("Error getting the existing events %s\n", err)
 		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
@@ -64,7 +88,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	fmt.Println(existingEvents)
 
-	if len(existingEvents) != 0 {
+	if len(existingEvents) != 0 || limit == 0 {
 		body, err := BuildResponse(existingEvents)
 		if err != nil {
 			fmt.Printf("Failed to build response %s\n", err)
@@ -101,7 +125,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	isHigher := aggregation > 30.0
 
-	responseDetail, err := service.SaveNewEvent(token, isHigher, aggregation)
+	responseDetail, err := service.SaveNewEvent(triggerIdentity, isHigher, aggregation)
 	if err != nil {
 		fmt.Printf("Error Saving the new event %s\n", err)
 		return events.APIGatewayProxyResponse{StatusCode: 500}, nil

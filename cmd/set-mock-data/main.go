@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"time"
 
 	"github.com/Tinee/hackathon2018/repository"
+	"github.com/Tinee/hackathon2018/service"
 	"github.com/globalsign/mgo"
 
 	"github.com/Tinee/hackathon2018/domain"
@@ -89,27 +89,23 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	fmt.Println("Set Mock Data")
 
-	ids, err := getUniqueTokenIdentifiers(eventsRepo)
+	ids, err := eventsRepo.FindUnique(1000)
 
 	if err != nil {
 		return events.APIGatewayProxyResponse{StatusCode: 500, Body: "\"" + err.Error() + "\""}, nil
 	}
 
-	b, err := json.Marshal(NewMockData{MockData: *mockData, IdsToUpdate: ids})
+	err = service.UpdateIFTTT(*ids)
+
+	if err != nil {
+		return events.APIGatewayProxyResponse{StatusCode: 500, Body: "\"" + err.Error() + "\""}, nil
+	}
+
+	b, err := json.Marshal(NewMockData{MockData: *mockData, IdsToUpdate: *ids})
 
 	return events.APIGatewayProxyResponse{StatusCode: 200, Body: string(b), Headers: map[string]string{
 		"Access-Control-Allow-Origin": "*",
 	}}, nil
-}
-
-func getUniqueTokenIdentifiers(eventsRepo repository.EventRepository) ([]string, error) {
-	uniqueEvents, err := eventsRepo.FindUnique(1000)
-	log.Println("returned Unique")
-	if err != nil {
-		return nil, err
-	}
-	log.Println("Found Unique")
-	return *uniqueEvents, nil
 }
 
 func main() {

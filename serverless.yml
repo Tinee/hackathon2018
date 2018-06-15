@@ -35,6 +35,7 @@ functions:
      - http:
          path: /set-mock-data
          method: post
+         cors: true
 
   status:
     handler: bin/status

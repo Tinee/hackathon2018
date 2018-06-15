@@ -10,7 +10,7 @@ type Event struct {
 	CreatedAt       time.Time
 }
 
-func (e Event) asResponseDetail() ResponseDetail {
+func (e Event) AsResponseDetail() ResponseDetail {
 	return ResponseDetail{
 		IsOverLimit:     e.IsOverLimit,
 		CreatedAt:       e.CreatedAt.Format("2006-01-02T15:04:05.999999+01:00"),

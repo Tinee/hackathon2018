@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/Tinee/hackathon2018/asdasd"
+	"github.com/Tinee/hackathon2018/domain"
 	"github.com/Tinee/hackathon2018/repository"
 	"github.com/globalsign/mgo"
-	"github.com/tinee/hackathon2018/domain"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -76,21 +76,35 @@ func WithHourMinute(now time.Time, hmString string) (time.Time, error) {
 	return time.Date(now.Year(), now.Month(), now.Day(), hour, minute, now.Second(), now.Nanosecond(), now.Location()), nil
 }
 
-// BuildResponse builds response to IFTTT
-func BuildResponse(isOverLimit bool, greenPercentage float32) ([]byte, error) {
+// Temp empty response
+func EmptyResponse() ([]byte, error) {
 
 	return json.Marshal(domain.Response{
 		Data: []domain.ResponseDetail{
 			domain.ResponseDetail{
-				IsOverLimit:     isOverLimit,
-				GreenPercentage: greenPercentage,
+				IsOverLimit:     false,
+				GreenPercentage: 0.0,
 				CreatedAt:       time.Now().UTC().Format(time.RFC3339),
 				Meta: domain.Meta{
 					Id:        "14b9-1fd2-acaa-5df5",
-					Timestamp: int(time.Now().Unix()),
+					Timestamp: time.Now().Unix(),
 				},
 			},
 		},
+	})
+}
+
+func BuildResponse(events_ *[]domain.Event) ([]byte, error) {
+	events := *events_
+
+	details := make([]domain.ResponseDetail, len(events))
+
+	for i, event := range events {
+		details[i] = event.AsResponseDetail()
+	}
+
+	return json.Marshal(domain.Response{
+		Data: details,
 	})
 }
 
@@ -163,7 +177,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	if now.Before(from) || now.After(to) {
 		fmt.Println("Exiting early outside of range")
-		body, _ := BuildResponse(false, 0.1)
+		body, _ := EmptyResponse()
 
 		return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: map[string]string{
 			"content-type": "application/json; charset=utf-8",
@@ -183,6 +197,17 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	}
 
 	fmt.Println(existingEvents)
+
+	body, err := BuildResponse(existingEvents)
+	if err != nil {
+		fmt.Printf("Failed to build response %s\n", err)
+		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
+	}
+
+	// QUICK
+	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: map[string]string{
+		"content-type": "application/json; charset=utf-8",
+	}}, nil
 
 	response, err := http.Get("http://api.carbonintensity.org.uk/generation")
 	if err != nil {

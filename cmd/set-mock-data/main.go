@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"time"
@@ -103,14 +104,12 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 func getUniqueTokenIdentifiers(eventsRepo repository.EventRepository) ([]string, error) {
 	uniqueEvents, err := eventsRepo.FindUnique(1000)
+	log.Println("returned Unique")
 	if err != nil {
 		return nil, err
 	}
-	var uniqueTokenIdentifiers []string
-	for _, element := range *uniqueEvents {
-		uniqueTokenIdentifiers = append(uniqueTokenIdentifiers, element.TriggerIdentity)
-	}
-	return uniqueTokenIdentifiers, nil
+	log.Println("Found Unique")
+	return *uniqueEvents, nil
 }
 
 func main() {

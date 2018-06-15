@@ -12,7 +12,7 @@ import (
 
 type EventRepository interface {
 	Insert(event domain.Event) (*domain.Event, error)
-	FindUnique(limit int) (*[]domain.Event, error)
+	FindUnique(limit int) (*[]string, error)
 	FindAllByTokenIdentity(token string, limit int) (*[]domain.Event, error)
 	FindAllByTokenIdentityBefore(tokenIdentity string, endPeriod time.Time, limit int) (*[]domain.Event, error)
 }
@@ -59,15 +59,17 @@ func (repo *mongoEventRepository) Insert(event domain.Event) (*domain.Event, err
 	return &event, nil
 }
 
-func (repo *mongoEventRepository) FindUnique(limit int) (*[]domain.Event, error) {
+func (repo *mongoEventRepository) FindUnique(limit int) (*[]string, error) {
 
 	s := repo.client.session.Copy()
 	defer s.Close()
 	coll := s.DB("").C(repo.collection)
 
 	log.Println("Getting find unique")
-	var results []domain.Event
-	err := coll.Find(bson.M{}).Distinct("triggerIdentity", results)
+	log.Println("Getting find unique2")
+
+	var results []string
+	err := coll.Find(nil).Distinct("triggerIdentity", &results)
 
 	if err == mgo.ErrNotFound {
 		fmt.Println("Not Found")

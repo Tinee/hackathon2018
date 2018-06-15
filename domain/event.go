@@ -22,6 +22,13 @@ func (e Event) asResponseDetail() ResponseDetail {
 	}
 }
 
+type MockData struct {
+	ID              string `bson:"_id"`
+	Now             time.Time
+	StartDataPeriod time.Time
+	EndDataPeriod   time.Time
+}
+
 // Response to IFTTT
 type Response struct {
 	Data []ResponseDetail `json:"data"`

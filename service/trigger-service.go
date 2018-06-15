@@ -53,8 +53,18 @@ func HandleEvent(from string, to string, triggerIdentity string, limit int) (*[]
 
 	fmt.Println("LookupGreenEnergyPercentage")
 	greenPercetageNow, err := LookupGreenEnergyPercentage(mockTime)
-	if greenPercetageNow > 30.0 {
-		fmt.Println("SaveNewEvent")
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("isNearEndOfWindow")
+	nearEnd, err := isNearEndOfWindow(to, mockTime)
+	if err != nil {
+		return nil, err
+	}
+
+	if greenPercetageNow >= 50.0 || nearEnd {
+		fmt.Printf("SaveNewEvent greenPercent [%s] nearEnd [%s]", greenPercetageNow, nearEnd)
 		SaveNewEvent(triggerIdentity, greenPercetageNow, mockTime)
 	}
 
@@ -149,6 +159,27 @@ func IsWithinTimeWindow(from string, to string, now time.Time) (bool, error) {
 	}
 
 	return (now.After(fromParsed) && now.Before(toParsed)), nil
+}
+
+func isNearEndOfWindow(to string, now time.Time) (bool, error) {
+
+	if (now == time.Time{}) {
+		now = time.Now()
+	}
+
+	thirtyMins, err := time.ParseDuration("30m")
+	if err != nil {
+		return false, err
+	}
+
+	nowPlus30Mins := now.Add(thirtyMins)
+
+	toParsed, err := withHourMinute(now, to)
+	if err != nil {
+		return false, err
+	}
+
+	return nowPlus30Mins.After(toParsed), nil
 }
 
 func LookupGreenEnergyPercentage(now time.Time) (float32, error) {

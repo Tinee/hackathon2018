@@ -79,7 +79,9 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	if err != nil {
 		return events.APIGatewayProxyResponse{StatusCode: 400, Body: "\"" + err.Error() + "\""}, nil
 	}
-	return events.APIGatewayProxyResponse{Body: response, StatusCode: 200}, nil
+	return events.APIGatewayProxyResponse{Body: response, StatusCode: 200, Headers: map[string]string{
+		"content-type": "application/json; charset=utf-8",
+	}}, nil
 }
 
 func main() {

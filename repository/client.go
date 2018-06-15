@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"log"
+
 	"github.com/globalsign/mgo"
 )
 
@@ -17,6 +19,7 @@ type mongoClient struct {
 }
 
 func NewMongoClient(info *mgo.DialInfo) (*mongoClient, error) {
+	log.Print(info)
 	s, err := mgo.DialWithInfo(info)
 	if err != nil {
 		return nil, err

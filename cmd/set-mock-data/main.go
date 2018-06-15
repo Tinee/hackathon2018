@@ -26,11 +26,11 @@ func ConnectToDatabase(dbAddr string) (repository.MockDataRepository, error) {
 	fmt.Println("Connecting to DB")
 
 	dialInfo, err := mgo.ParseURL(dbAddr)
-	dialInfo.Timeout = 30 * time.Second
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
 	}
+	dialInfo.Timeout = 30 * time.Second
 
 	dialInfo.DialServer = func(addr *mgo.ServerAddr) (net.Conn, error) {
 		return tls.Dial("tcp", addr.String(), &tls.Config{})

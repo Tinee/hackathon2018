@@ -10,14 +10,14 @@ import (
 
 func ValidateIFTTTRequest(e events.APIGatewayProxyRequest) *events.APIGatewayProxyResponse {
 	log.Print(e.Headers)
-	err := ValidateServiceKey(e.Headers["Ifttt-Service-Key"])
+	err := validateServiceKey(e.Headers["Ifttt-Service-Key"])
 	if err != nil {
 		return &events.APIGatewayProxyResponse{Body: "\"" + err.Error() + "\"", StatusCode: 401}
 	}
 	return nil
 }
 
-func ValidateServiceKey(key string) error {
+func validateServiceKey(key string) error {
 	if os.Getenv("IFTTT_SERVICE_KEY") == "" {
 		return errors.New("No environment variable specified when deploying this lambda")
 	}

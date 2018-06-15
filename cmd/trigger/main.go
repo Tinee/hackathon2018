@@ -55,12 +55,15 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		return *errr, nil
 	}
 
-	var req Request
+	req := Request{}
+	req.Triggers.Limit = -1
+
 	err := json.Unmarshal([]byte(e.Body), &req)
 	if err != nil {
 		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
 	}
 
+	fmt.Println("Validating request")
 	to := req.Triggers.To
 	if to == "" {
 		err = errors.New("Missing to")
@@ -79,7 +82,8 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	limit := req.Triggers.Limit
 
-	if limit == 0 {
+	if limit == -1 {
+		fmt.Println("Limit is actually 0 exiting early")
 		body, _ := EmptyResponse()
 
 		return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: map[string]string{

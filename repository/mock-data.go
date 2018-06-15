@@ -10,6 +10,7 @@ import (
 type MockDataRepository interface {
 	Set(mockData domain.MockData) (*domain.MockData, error)
 	Get() (*domain.MockData, error)
+	Clear() error
 }
 
 type mongoMockDataRepository struct {
@@ -61,4 +62,13 @@ func (repo *mongoMockDataRepository) Get() (*domain.MockData, error) {
 	}
 
 	return &doc, nil
+}
+
+func (repo *mongoMockDataRepository) Clear() error {
+
+	s := repo.client.session.Copy()
+	defer s.Close()
+	coll := s.DB("").C(repo.collection)
+
+	return coll.DropCollection()
 }

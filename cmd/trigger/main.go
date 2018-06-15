@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
-	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -209,35 +207,35 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		"content-type": "application/json; charset=utf-8",
 	}}, nil
 
-	response, err := http.Get("http://api.carbonintensity.org.uk/generation")
-	if err != nil {
-		fmt.Printf("The HTTP request failed with error %s\n", err)
-		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
-	}
+	// response, err := http.Get("http://api.carbonintensity.org.uk/generation")
+	// if err != nil {
+	// 	fmt.Printf("The HTTP request failed with error %s\n", err)
+	// 	return events.APIGatewayProxyResponse{StatusCode: 500}, nil
+	// }
 
-	jsonData, _ := ioutil.ReadAll(response.Body)
+	// jsonData, _ := ioutil.ReadAll(response.Body)
 
-	var result Result
-	err = json.Unmarshal(jsonData, &result)
+	// var result Result
+	// err = json.Unmarshal(jsonData, &result)
 
-	if err != nil {
-		fmt.Printf("Error Unmarshaling json %s\n", err)
-		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
-	}
+	// if err != nil {
+	// 	fmt.Printf("Error Unmarshaling json %s\n", err)
+	// 	return events.APIGatewayProxyResponse{StatusCode: 500}, nil
+	// }
 
-	aggregation := result.Data.Mix.AggregateGreenEnergy()
+	// aggregation := result.Data.Mix.AggregateGreenEnergy()
 
-	isHigher := aggregation > 30.0
+	// isHigher := aggregation > 30.0
 
-	body, err := BuildResponse(isHigher, aggregation)
-	if err != nil {
-		fmt.Printf("The HTTP request failed with error %s\n", err)
-		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
-	}
+	// body, err := BuildResponse(isHigher, aggregation)
+	// if err != nil {
+	// 	fmt.Printf("The HTTP request failed with error %s\n", err)
+	// 	return events.APIGatewayProxyResponse{StatusCode: 500}, nil
+	// }
 
-	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: map[string]string{
-		"content-type": "application/json; charset=utf-8",
-	}}, nil
+	// return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: map[string]string{
+	// 	"content-type": "application/json; charset=utf-8",
+	// }}, nil
 }
 
 func main() {

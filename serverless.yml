@@ -25,6 +25,14 @@ package:
    - ./bin/**
 
 functions:
+
+  hours:
+    handler: bin/trigger
+    events:
+     - http:
+         path: /ifttt/v1/triggers/lumo_hours
+         method: post
+
   hoursStartOptions:
     handler: bin/trigger-time-options
     events:

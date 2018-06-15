@@ -27,8 +27,14 @@ func HandleEvent(from string, to string, triggerIdentity string, limit int) (*[]
 		return nil, err
 	}
 
+	fmt.Println("getMockedDate")
+	mockTime, err := getMockedDate()
+	if err != nil {
+		return nil, err
+	}
+
 	fmt.Println("AlreadyExistsForToday")
-	alreadyExistsForToday, err := AlreadyExistsForToday(triggerIdentity)
+	alreadyExistsForToday, err := AlreadyExistsForToday(triggerIdentity, mockTime)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +43,7 @@ func HandleEvent(from string, to string, triggerIdentity string, limit int) (*[]
 	}
 
 	fmt.Println("IsWithinTimeWindow")
-	withinTimeRange, err := IsWithinTimeWindow(from, to)
+	withinTimeRange, err := IsWithinTimeWindow(from, to, mockTime)
 	if err != nil {
 		return nil, err
 	}
@@ -45,12 +51,11 @@ func HandleEvent(from string, to string, triggerIdentity string, limit int) (*[]
 		return FindAll(triggerIdentity, limit)
 	}
 
-	// time.Time{} needs to be replaced
 	fmt.Println("LookupGreenEnergyPercentage")
-	greenPercetageNow, err := LookupGreenEnergyPercentage(time.Time{})
+	greenPercetageNow, err := LookupGreenEnergyPercentage(mockTime)
 	if greenPercetageNow > 30.0 {
 		fmt.Println("SaveNewEvent")
-		SaveNewEvent(triggerIdentity, greenPercetageNow)
+		SaveNewEvent(triggerIdentity, greenPercetageNow, mockTime)
 	}
 
 	fmt.Println("FindAll")
@@ -58,7 +63,7 @@ func HandleEvent(from string, to string, triggerIdentity string, limit int) (*[]
 }
 
 func EnsureInitialExists(triggerIdentity string) error {
-	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
+	_, repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
 	if err != nil {
 		return err
 	}
@@ -87,13 +92,17 @@ func EnsureInitialExists(triggerIdentity string) error {
 	return nil
 }
 
-func AlreadyExistsForToday(triggerIdentity string) (bool, error) {
-	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
+func AlreadyExistsForToday(triggerIdentity string, now time.Time) (bool, error) {
+	if (now == time.Time{}) {
+		now = time.Now()
+	}
+
+	_, repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
 	if err != nil {
 		return false, err
 	}
 
-	events_, err := repo.FindAllByTokenSinceBeginningOfDay(triggerIdentity, time.Now(), 1)
+	events_, err := repo.FindAllByTokenSinceBeginningOfDay(triggerIdentity, now, 1)
 	if err != nil {
 		return false, err
 	}
@@ -102,8 +111,20 @@ func AlreadyExistsForToday(triggerIdentity string) (bool, error) {
 	return len(events) > 0, nil
 }
 
+func getMockedDate() (time.Time, error) {
+	mockDataRepo, _, err := connectToDatabase(os.Getenv("DB_ADDR"))
+	mockData, err := mockDataRepo.Get()
+	if err == mgo.ErrNotFound {
+		return time.Time{}, nil
+	}
+	if err != nil {
+		return time.Time{}, err
+	}
+	return mockData.Now, nil
+}
+
 func FindAll(tokenIdentity string, limit int) (*[]domain.Event, error) {
-	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
+	_, repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
 	if err != nil {
 		return nil, err
 	}
@@ -111,8 +132,11 @@ func FindAll(tokenIdentity string, limit int) (*[]domain.Event, error) {
 	return repo.FindAllByTokenIdentity(tokenIdentity, limit)
 }
 
-func IsWithinTimeWindow(from string, to string) (bool, error) {
-	now := time.Now()
+func IsWithinTimeWindow(from string, to string, now time.Time) (bool, error) {
+
+	if (now == time.Time{}) {
+		now = time.Now()
+	}
 
 	fromParsed, err := withHourMinute(now, from)
 	if err != nil {
@@ -200,15 +224,18 @@ func lookupMockGreenEnergyPercentage(now time.Time) (float32, error) {
 	return 0, errors.New("could not find a valid time range in the mock data")
 }
 
-func SaveNewEvent(triggerIdentity string, greenPercentage float32) error {
+func SaveNewEvent(triggerIdentity string, greenPercentage float32, now time.Time) error {
+	if (now == time.Time{}) {
+		now = time.Now()
+	}
 	event := domain.Event{
 		TriggerIdentity: triggerIdentity,
 		IsOverLimit:     true, // As we only call this when saving a normal trigger
 		GreenPercentage: greenPercentage,
-		CreatedAt:       time.Now(),
+		CreatedAt:       now,
 	}
 
-	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
+	_, repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
 	if err != nil {
 		return err
 	}
@@ -219,20 +246,20 @@ func SaveNewEvent(triggerIdentity string, greenPercentage float32) error {
 
 // Privates
 
-func connectToDatabase(dbAddr string) (repository.EventRepository, error) {
+func connectToDatabase(dbAddr string) (repository.MockDataRepository, repository.EventRepository, error) {
 	if dbAddr == "" {
 		fmt.Println("No DB_ADDR provided")
-		return nil, errors.New("No DB_ADDR provided")
+		return nil, nil, errors.New("No DB_ADDR provided")
 	}
 
 	fmt.Println("Connecting to DB")
 
 	dialInfo, err := mgo.ParseURL(dbAddr)
-	dialInfo.Timeout = 30 * time.Second
 	if err != nil {
 		fmt.Println(err)
-		return nil, err
+		return nil, nil, err
 	}
+	dialInfo.Timeout = 30 * time.Second
 
 	dialInfo.DialServer = func(addr *mgo.ServerAddr) (net.Conn, error) {
 		return tls.Dial("tcp", addr.String(), &tls.Config{})
@@ -241,17 +268,24 @@ func connectToDatabase(dbAddr string) (repository.EventRepository, error) {
 	mongoClient, err := repository.NewMongoClient(dialInfo)
 	if err != nil {
 		fmt.Println(err)
-		return nil, err
+		return nil, nil, err
+	}
+
+	fmt.Println("Initialising MockData Repo")
+	mockDataRepo, err := repository.NewMongoMockDataRespository(mongoClient, "mockData")
+	if err != nil {
+		fmt.Println(err)
+		return nil, nil, err
 	}
 
 	fmt.Println("Initialising Events Repo")
-	eventRepo, err := repository.NewMongoEventsRespository(mongoClient, "events")
+	eventsRepo, err := repository.NewMongoEventsRespository(mongoClient, "events")
 	if err != nil {
 		fmt.Println(err)
-		return nil, err
+		return nil, nil, err
 	}
 
-	return eventRepo, nil
+	return mockDataRepo, eventsRepo, nil
 }
 
 // WithHourMinute sets the hour and minute on a given Time

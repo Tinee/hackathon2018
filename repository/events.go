@@ -98,7 +98,7 @@ func (repo *mongoEventRepository) FindAllByTokenIdentityBefore(
 	err := coll.Find(bson.M{
 		"triggerIdentity": tokenIdentity,
 		"createdAt":       bson.M{"$lt": endPeriod},
-	}).Limit(limit).All(&results)
+	}).Sort("-createdAt").Limit(limit).All(&results)
 
 	if err == mgo.ErrNotFound {
 		return nil, nil
@@ -124,7 +124,7 @@ func (repo *mongoEventRepository) FindAllByTokenIdentity(tokenIdentity string, l
 	var results []domain.Event
 	err := coll.Find(bson.M{
 		"triggerIdentity": tokenIdentity,
-	}).Limit(limit).All(&results)
+	}).Sort("-createdAt").Limit(limit).All(&results)
 
 	if err == mgo.ErrNotFound {
 		return nil, nil

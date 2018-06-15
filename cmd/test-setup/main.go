@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 
 	auth "github.com/Tinee/hackathon2018/auth"
 	"github.com/aws/aws-lambda-go/events"
@@ -10,12 +11,12 @@ import (
 
 type (
 	TestSetupResponse struct {
-		data struct {
-			samples struct {
-				triggers struct {
-					lumoHours struct {
-						hoursStart string `json:"hour_start"`
-						hoursStop  string `json:"hour_stop"`
+		Data struct {
+			Samples struct {
+				Triggers struct {
+					LumoHours struct {
+						HoursStart string `json:"hours_start"`
+						HoursStop  string `json:"hours_stop"`
 					} `json:"lumo_hours"`
 				} `json:"triggers"`
 			} `json:"samples"`
@@ -25,8 +26,9 @@ type (
 
 func BuildTestResponse(hoursStart, hoursStop string) ([]byte, error) {
 	resp := TestSetupResponse{}
-	resp.data.samples.triggers.lumoHours.hoursStart = hoursStart
-	resp.data.samples.triggers.lumoHours.hoursStop = hoursStop
+	resp.Data.Samples.Triggers.LumoHours.HoursStart = hoursStart
+	resp.Data.Samples.Triggers.LumoHours.HoursStop = hoursStop
+	log.Print(resp)
 	return json.Marshal(resp)
 }
 
@@ -38,8 +40,11 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	}
 
 	resp, _ := BuildTestResponse("22:00", "23:30")
-
-	return events.APIGatewayProxyResponse{Body: string(resp), StatusCode: 200}, nil
+	output := string(resp)
+	log.Print(output)
+	return events.APIGatewayProxyResponse{Body: output, StatusCode: 200, Headers: map[string]string{
+		"content-type": "application/json; charset=utf-8",
+	}}, nil
 }
 
 func main() {

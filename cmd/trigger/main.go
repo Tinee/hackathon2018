@@ -94,6 +94,10 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		}}, nil
 	}
 
+	if limit == -1 {
+		limit = 0
+	}
+
 	fmt.Printf("triggerIdentity: %s\n", triggerIdentity)
 
 	// If there are events in the DB then return those

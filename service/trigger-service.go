@@ -36,14 +36,14 @@ func InTriggerWindow(from string, to string) (bool, error) {
 	return (now.After(fromParsed) && now.Before(toParsed)), nil
 }
 
-func ExistingEvents(token string, limit int) ([]domain.ResponseDetail, error) {
+func ExistingEventsForToday(token string, limit int) ([]domain.ResponseDetail, error) {
 	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
 	if err != nil {
 		fmt.Printf("DB connection failure %s\n", err)
 		return nil, err
 	}
 
-	events_, err := repo.FindAllByTokenIdentity(token, limit)
+	events_, err := repo.FindAllByTokenSinceBeginningOfDay(token, time.Now(), limit)
 	if err != nil {
 		fmt.Printf("Error when FindAllByTokenIdentity %s\n", err)
 		return nil, err

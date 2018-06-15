@@ -64,8 +64,6 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
 	}
 
-	fmt.Printf("Limit is %s", req.Limit)
-
 	fmt.Println("Validating request")
 	to := req.Triggers.To
 	if to == "" {
@@ -110,11 +108,16 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	fmt.Printf("existing: %s \n", existingEvents)
 
 	if len(existingEvents) != 0 {
+		fmt.Println("Existing event count > 0 returning from DB")
+
 		body, err := BuildResponse(existingEvents)
 		if err != nil {
 			fmt.Printf("Failed to build response %s\n", err)
 			return events.APIGatewayProxyResponse{StatusCode: 500}, nil
 		}
+
+		fmt.Println("EXISTING & RESPONSE IS")
+		fmt.Println(string(body))
 
 		return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: map[string]string{
 			"content-type": "application/json; charset=utf-8",
@@ -164,6 +167,8 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
 	}
 
+	fmt.Println("NEW SAVED & RESPONSE IS")
+	fmt.Println(string(body))
 	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: map[string]string{
 		"content-type": "application/json; charset=utf-8",
 	}}, nil

@@ -49,18 +49,22 @@ func BuildResponse(events []domain.ResponseDetail) ([]byte, error) {
 
 func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	fmt.Println("Starting the application...")
+	fmt.Printf("Body %s ", e.Body)
 
 	errr := auth.ValidateIFTTTRequest(e)
 	if errr != nil {
 		return *errr, nil
 	}
 
-	var req Request
+	req := Request{}
+	req.Triggers.Limit = -1
+
 	err := json.Unmarshal([]byte(e.Body), &req)
 	if err != nil {
 		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
 	}
 
+	fmt.Println("Validating request")
 	to := req.Triggers.To
 	if to == "" {
 		err = errors.New("Missing to")
@@ -80,6 +84,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	limit := req.Triggers.Limit
 
 	if limit == 0 {
+		fmt.Println("Limit is actually 0 exiting early")
 		body, _ := EmptyResponse()
 
 		return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: map[string]string{

@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 
+	"github.com/Tinee/hackathon2018/asdasd"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
@@ -73,10 +75,17 @@ var b, err = json.Marshal(TriggerOptionsResponse{Data: options})
 var response = string(b)
 
 func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	errResp := auth.ValidateIFTTTRequest(e)
+	if errResp != nil {
+		return *errResp, nil
+	}
+
 	if err != nil {
 		return events.APIGatewayProxyResponse{StatusCode: 400, Body: "\"" + err.Error() + "\""}, nil
 	}
-	return events.APIGatewayProxyResponse{Body: response, StatusCode: 200}, nil
+	return events.APIGatewayProxyResponse{Body: response, StatusCode: 200, Headers: map[string]string{
+		"content-type": "application/json; charset=utf-8",
+	}}, nil
 }
 
 func main() {

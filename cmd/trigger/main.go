@@ -15,11 +15,11 @@ import (
 
 // Request from IFTTT
 type Request struct {
-	Triggers struct {
-		TriggerIdentity string `json:"trigger_identity"`
-		From            string `json:"hours_start"`
-		To              string `json:"hours_stop"`
-		Limit           int    `json:"limit"`
+	TriggerIdentity string `json:"trigger_identity"`
+	Triggers        struct {
+		From  string `json:"hours_start"`
+		To    string `json:"hours_stop"`
+		Limit int    `json:"limit"`
 	} `json:"triggerFields"`
 }
 
@@ -29,6 +29,16 @@ func EmptyResponse() ([]byte, error) {
 	return json.Marshal(domain.Response{
 		Data: []domain.ResponseDetail{},
 	})
+}
+
+func ErrorResponse(err error) events.APIGatewayProxyResponse {
+	return events.APIGatewayProxyResponse{
+		Body:       "{\"errors\": [{\"message\": \"" + err.Error() + "\"}]}",
+		StatusCode: 400,
+		Headers: map[string]string{
+			"content-type": "application/json; charset=utf-8",
+		},
+	}
 }
 
 func BuildResponse(events []domain.ResponseDetail) ([]byte, error) {
@@ -54,29 +64,29 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	to := req.Triggers.To
 	if to == "" {
 		err = errors.New("Missing to")
-		return events.APIGatewayProxyResponse{
-			Body:       "{\"errors\": [{\"message\": \"" + err.Error() + "\"}]}",
-			StatusCode: 400,
-		}, nil
+		return ErrorResponse(err), nil
 	}
 	from := req.Triggers.From
 	if from == "" {
 		err = errors.New("Missing from")
-		return events.APIGatewayProxyResponse{
-			Body:       "{\"errors\": [{\"message\": \"" + err.Error() + "\"}]}",
-			StatusCode: 400,
-		}, nil
+		return ErrorResponse(err), nil
 	}
-	triggerIdentity := req.Triggers.TriggerIdentity
+	triggerIdentity := req.TriggerIdentity
 	if triggerIdentity == "" {
 		err = errors.New("Missing triggerIdentity")
-		return events.APIGatewayProxyResponse{
-			Body:       "{\"errors\": [{\"message\": \"" + err.Error() + "\"}]}",
-			StatusCode: 400,
-		}, nil
+		return ErrorResponse(err), nil
 	}
 
 	limit := req.Triggers.Limit
+
+	if limit == 0 {
+		body, _ := EmptyResponse()
+
+		return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: map[string]string{
+			"content-type": "application/json; charset=utf-8",
+		}}, nil
+	}
+
 	fmt.Printf("triggerIdentity: %s\n", triggerIdentity)
 
 	// If there are events in the DB then return those
@@ -86,9 +96,9 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
 	}
 
-	fmt.Println(existingEvents)
+	fmt.Printf("existing: %s \n", existingEvents)
 
-	if len(existingEvents) != 0 || limit == 0 {
+	if len(existingEvents) != 0 {
 		body, err := BuildResponse(existingEvents)
 		if err != nil {
 			fmt.Printf("Failed to build response %s\n", err)
@@ -115,6 +125,8 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 			"content-type": "application/json; charset=utf-8",
 		}}, nil
 	}
+
+	fmt.Println("Saving a new event ")
 
 	// Otherwise lookup the generation
 	aggregation, err := service.LookupGreenEnergyPercentage()

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -73,8 +74,10 @@ var b, err = json.Marshal(TriggerOptionsResponse{Data: options})
 var response = string(b)
 
 func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	log.Print(options)
+	log.Print(response)
 	if err != nil {
-		return events.APIGatewayProxyResponse{}, err
+		return events.APIGatewayProxyResponse{StatusCode: 400, Body: "\"" + err.Error() + "\""}, nil
 	}
 	return events.APIGatewayProxyResponse{Body: response, StatusCode: 200}, nil
 }

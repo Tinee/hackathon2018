@@ -23,34 +23,6 @@ type Request struct {
 	} `json:"triggerFields"`
 }
 
-type Result struct {
-	Data Data `json:"data"`
-}
-
-type Data struct {
-	From string          `json:"from"`
-	To   string          `json:"to"`
-	Mix  Generationmixes `json:"generationmix"`
-}
-
-type Generationmix struct {
-	Fuel       string  `json:"fuel"`
-	Percentage float32 `json:"perc"`
-}
-
-type Generationmixes []Generationmix
-
-// AggregateGreenEnergy calculates green energy percentage
-func (g Generationmixes) AggregateGreenEnergy() (res float32) {
-	for _, element := range g {
-		switch element.Fuel {
-		case "solar", "hydro", "wind":
-			res += element.Percentage
-		}
-	}
-	return res
-}
-
 // Temp empty response
 func EmptyResponse() ([]byte, error) {
 
@@ -130,23 +102,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		"content-type": "application/json; charset=utf-8",
 	}}, nil
 
-	// response, err := http.Get("http://api.carbonintensity.org.uk/generation")
-	// if err != nil {
-	// 	fmt.Printf("The HTTP request failed with error %s\n", err)
-	// 	return events.APIGatewayProxyResponse{StatusCode: 500}, nil
-	// }
-
-	// jsonData, _ := ioutil.ReadAll(response.Body)
-
-	// var result Result
-	// err = json.Unmarshal(jsonData, &result)
-
-	// if err != nil {
-	// 	fmt.Printf("Error Unmarshaling json %s\n", err)
-	// 	return events.APIGatewayProxyResponse{StatusCode: 500}, nil
-	// }
-
-	// aggregation := result.Data.Mix.AggregateGreenEnergy()
+	// aggregation := service.LookupGreenEnergyPercentage
 
 	// isHigher := aggregation > 30.0
 

@@ -2,9 +2,12 @@ package service
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -56,6 +59,27 @@ func ExistingEvents(token string, limit int) ([]domain.ResponseDetail, error) {
 
 	return details, nil
 }
+
+func LookupGreenEnergyPercentage() (float32, error) {
+	response, err := http.Get("http://api.carbonintensity.org.uk/generation")
+	if err != nil {
+		fmt.Printf("The HTTP request failed with error %s\n", err)
+		return -1, err
+	}
+
+	jsonData, _ := ioutil.ReadAll(response.Body)
+
+	var result domain.GenerationResult
+	err = json.Unmarshal(jsonData, &result)
+	if err != nil {
+		fmt.Printf("Error Unmarshaling json %s\n", err)
+		return -1, err
+	}
+
+	return result.Data.Mix.AggregateGreenEnergy(), nil
+}
+
+// Privates
 
 func connectToDatabase(dbAddr string) (repository.EventRepository, error) {
 	if dbAddr == "" {

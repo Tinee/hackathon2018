@@ -11,6 +11,7 @@ import (
 type EventRepository interface {
 	Insert(event domain.Event) (*domain.Event, error)
 	FindAllByTokenIdentity(token string, limit int) (*[]domain.Event, error)
+	FindAllByTokenIdentityBefore(tokenIdentity string, endPeriod time.Time, limit int) (*[]domain.Event, error)
 }
 
 type mongoEventRepository struct {
@@ -55,6 +56,33 @@ func (repo *mongoEventRepository) Insert(event domain.Event) (*domain.Event, err
 	return &event, nil
 }
 
+func (repo *mongoEventRepository) FindAllByTokenIdentityBefore(
+	tokenIdentity string,
+	endPeriod time.Time,
+	limit int,
+) (*[]domain.Event, error) {
+
+	s := repo.client.session.Copy()
+	defer s.Close()
+	coll := s.DB("").C(repo.collection)
+
+	var results []domain.Event
+	err := coll.Find(bson.M{
+		"tokenIdentity": tokenIdentity,
+		"createdAt":     bson.M{"$lt": endPeriod},
+	}).Limit(limit).All(&results)
+
+	if err == mgo.ErrNotFound {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &results, nil
+}
+
 func (repo *mongoEventRepository) FindAllByTokenIdentity(tokenIdentity string, limit int) (*[]domain.Event, error) {
 
 	if limit == 0 {
@@ -68,7 +96,7 @@ func (repo *mongoEventRepository) FindAllByTokenIdentity(tokenIdentity string, l
 	var results []domain.Event
 	err := coll.Find(bson.M{
 		"tokenIdentity": tokenIdentity,
-	}).All(&results)
+	}).Limit(limit).All(&results)
 
 	if err == mgo.ErrNotFound {
 		return nil, nil

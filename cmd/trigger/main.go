@@ -1,19 +1,13 @@
 package main
 
 import (
-	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"net"
-	"os"
 	"time"
 
 	"github.com/Tinee/hackathon2018/asdasd"
 	"github.com/Tinee/hackathon2018/domain"
-	"github.com/Tinee/hackathon2018/repository"
 	"github.com/Tinee/hackathon2018/service"
-	"github.com/globalsign/mgo"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -75,53 +69,10 @@ func EmptyResponse() ([]byte, error) {
 	})
 }
 
-func BuildResponse(events_ *[]domain.Event) ([]byte, error) {
-	events := *events_
-
-	details := make([]domain.ResponseDetail, len(events))
-
-	for i, event := range events {
-		details[i] = event.AsResponseDetail()
-	}
-
+func BuildResponse(events []domain.ResponseDetail) ([]byte, error) {
 	return json.Marshal(domain.Response{
-		Data: details,
+		Data: events,
 	})
-}
-
-func ConnectToDatabase(dbAddr string) (repository.EventRepository, error) {
-	if dbAddr == "" {
-		fmt.Println("No DB_ADDR provided")
-		return nil, errors.New("No DB_ADDR provided")
-	}
-
-	fmt.Println("Connecting to DB")
-
-	dialInfo, err := mgo.ParseURL(dbAddr)
-	dialInfo.Timeout = 30 * time.Second
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	dialInfo.DialServer = func(addr *mgo.ServerAddr) (net.Conn, error) {
-		return tls.Dial("tcp", addr.String(), &tls.Config{})
-	}
-
-	mongoClient, err := repository.NewMongoClient(dialInfo)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	fmt.Println("Initialising Events Repo")
-	eventRepo, err := repository.NewMongoEventsRespository(mongoClient, "events")
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	return eventRepo, nil
 }
 
 func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -160,15 +111,9 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	}
 	//
 
-	repo, err := ConnectToDatabase(os.Getenv("DB_ADDR"))
+	existingEvents, err := service.ExistingEvents(token, limit)
 	if err != nil {
-		fmt.Printf("DB connection failure %s\n", err)
-		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
-	}
-
-	existingEvents, err := repo.FindAllByTokenIdentity(token, limit)
-	if err != nil {
-		fmt.Printf("Error when FindAllByTokenIdentity %s\n", err)
+		fmt.Printf("Error getting the existing events %s\n", err)
 		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
 	}
 

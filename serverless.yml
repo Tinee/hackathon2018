@@ -29,6 +29,14 @@ package:
 
 functions:
 
+  clear:
+    handler: bin/clear-new-events
+    events:
+     - http:
+         path: /set-mock-data
+         method: delete
+         cors: true
+
   set-mock-data:
     handler: bin/set-mock-data
     events:

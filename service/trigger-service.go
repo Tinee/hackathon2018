@@ -19,11 +19,15 @@ import (
 )
 
 func HandleEvent(from string, to string, triggerIdentity string, limit int) (*[]domain.Event, error) {
+	fmt.Println("Handling event")
+
+	fmt.Println("EnsureInitialExists")
 	err := EnsureInitialExists(triggerIdentity)
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Println("AlreadyExistsForToday")
 	alreadyExistsForToday, err := AlreadyExistsForToday(triggerIdentity)
 	if err != nil {
 		return nil, err
@@ -32,6 +36,7 @@ func HandleEvent(from string, to string, triggerIdentity string, limit int) (*[]
 		return FindAll(triggerIdentity, limit)
 	}
 
+	fmt.Println("IsWithinTimeWindow")
 	withinTimeRange, err := IsWithinTimeWindow(from, to)
 	if err != nil {
 		return nil, err
@@ -40,12 +45,15 @@ func HandleEvent(from string, to string, triggerIdentity string, limit int) (*[]
 		return FindAll(triggerIdentity, limit)
 	}
 
-	// time.Now needs to be replaced
-	greenPercetageNow, err := LookupGreenEnergyPercentage(time.Now())
+	// time.Time{} needs to be replaced
+	fmt.Println("LookupGreenEnergyPercentage")
+	greenPercetageNow, err := LookupGreenEnergyPercentage(time.Time{})
 	if greenPercetageNow > 30.0 {
+		fmt.Println("SaveNewEvent")
 		SaveNewEvent(triggerIdentity, greenPercetageNow)
 	}
 
+	fmt.Println("FindAll")
 	return FindAll(triggerIdentity, limit)
 }
 
@@ -121,9 +129,11 @@ func IsWithinTimeWindow(from string, to string) (bool, error) {
 
 func LookupGreenEnergyPercentage(now time.Time) (float32, error) {
 	if (now == time.Time{}) {
+		fmt.Println("lookupNormalGreenEnergyPercentage")
 		return lookupNormalGreenEnergyPercentage()
 	}
-	return LookupGreenEnergyPercentage(now)
+	fmt.Println("LookupGreenEnergyPercentage")
+	return lookupMockGreenEnergyPercentage(now)
 }
 
 func lookupNormalGreenEnergyPercentage() (float32, error) {

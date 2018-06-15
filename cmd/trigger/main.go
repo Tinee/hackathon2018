@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	auth "github.com/Tinee/hackathon2018/auth"
+	"github.com/Tinee/hackathon2018/asdasd"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -91,17 +91,23 @@ func BuildResponse(isOverLimit bool, greenPercentage float32) ([]byte, error) {
 
 func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	fmt.Println("Starting the application...")
-	if errResp := auth.ValidateIFTTTRequest(e); errResp != nil {
-		return *errResp, nil
+	// if errResp := auth.ValidateIFTTTRequest(e); errResp != nil {
+	// 	return *errResp, nil
+	// }
+
+	errr := auth.ValidateIFTTTRequest(e)
+	if errr != nil {
+		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
 	}
 
 	now := time.Now()
-	fmt.Println(now)
 	var req Request
 	err := json.Unmarshal([]byte(e.Body), &req)
 
 	tos := req.triggers.to
 	froms := req.triggers.from
+	fmt.Println(froms)
+	fmt.Println(tos)
 
 	from, err := WithHourMinute(now, froms)
 	if err != nil {
@@ -138,17 +144,17 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
 	}
 
-	aggregation := result.Data.Mix.AggregateGreenEnergy()
+	// aggregation := result.Data.Mix.AggregateGreenEnergy()
 
-	isHigher := aggregation > 30.0
+	// isHigher := aggregation > 30.0
 
-	body, err := BuildResponse(isHigher, aggregation)
+	// body, err := BuildResponse(isHigher, aggregation)
 	if err != nil {
 		fmt.Printf("The HTTP request failed with error %s\n", err)
 		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
 	}
 
-	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200}, nil
+	return events.APIGatewayProxyResponse{Body: "hejsan", StatusCode: 200}, nil
 }
 
 func main() {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"log"
 
-	auth "github.com/Tinee/hackathon2018/auth"
+	auth "github.com/Tinee/hackathon2018/asdasd"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )

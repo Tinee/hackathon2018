@@ -137,7 +137,11 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	isHigher := aggregation > 30.0
 
-	body, _ := BuildResponse(isHigher, aggregation)
+	body, err := BuildResponse(isHigher, aggregation)
+	if err != nil {
+		fmt.Printf("The HTTP request failed with error %s\n", err)
+		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
+	}
 
 	return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200}, nil
 }

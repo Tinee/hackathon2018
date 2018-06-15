@@ -49,6 +49,7 @@ func BuildResponse(events []domain.ResponseDetail) ([]byte, error) {
 
 func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	fmt.Println("Starting the application...")
+	fmt.Printf("Body %s ", e.Body)
 
 	errr := auth.ValidateIFTTTRequest(e)
 	if errr != nil {
@@ -82,7 +83,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	limit := req.Triggers.Limit
 
-	if limit == -1 {
+	if limit == 0 {
 		fmt.Println("Limit is actually 0 exiting early")
 		body, _ := EmptyResponse()
 

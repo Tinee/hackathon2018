@@ -1,19 +1,13 @@
 package main
 
 import (
-	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"net"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/Tinee/hackathon2018/asdasd"
 	"github.com/Tinee/hackathon2018/domain"
-	"github.com/Tinee/hackathon2018/repository"
-	"github.com/globalsign/mgo"
+	"github.com/Tinee/hackathon2018/service"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -27,51 +21,6 @@ type Request struct {
 		To    string `json:"hours_stop"`
 		Limit int    `json:"limit"`
 	} `json:"triggerFields"`
-}
-
-type Result struct {
-	Data Data `json:"data"`
-}
-
-type Data struct {
-	From string          `json:"from"`
-	To   string          `json:"to"`
-	Mix  Generationmixes `json:"generationmix"`
-}
-
-type Generationmix struct {
-	Fuel       string  `json:"fuel"`
-	Percentage float32 `json:"perc"`
-}
-
-type Generationmixes []Generationmix
-
-// AggregateGreenEnergy calculates green energy percentage
-func (g Generationmixes) AggregateGreenEnergy() (res float32) {
-	for _, element := range g {
-		switch element.Fuel {
-		case "solar", "hydro", "wind":
-			res += element.Percentage
-		}
-	}
-	return res
-}
-
-// WithHourMinute sets the hour and minute on a given Time
-func WithHourMinute(now time.Time, hmString string) (time.Time, error) {
-	hourStr := hmString[:2]
-	minuteStr := hmString[3:]
-
-	hour, err := strconv.Atoi(hourStr)
-	if err != nil {
-		return time.Time{}, err
-	}
-	minute, err := strconv.Atoi(minuteStr)
-	if err != nil {
-		return time.Time{}, err
-	}
-
-	return time.Date(now.Year(), now.Month(), now.Day(), hour, minute, now.Second(), now.Nanosecond(), now.Location()), nil
 }
 
 // Temp empty response
@@ -92,53 +41,10 @@ func EmptyResponse() ([]byte, error) {
 	})
 }
 
-func BuildResponse(events_ *[]domain.Event) ([]byte, error) {
-	events := *events_
-
-	details := make([]domain.ResponseDetail, len(events))
-
-	for i, event := range events {
-		details[i] = event.AsResponseDetail()
-	}
-
+func BuildResponse(events []domain.ResponseDetail) ([]byte, error) {
 	return json.Marshal(domain.Response{
-		Data: details,
+		Data: events,
 	})
-}
-
-func ConnectToDatabase(dbAddr string) (repository.EventRepository, error) {
-	if dbAddr == "" {
-		fmt.Println("No DB_ADDR provided")
-		return nil, errors.New("No DB_ADDR provided")
-	}
-
-	fmt.Println("Connecting to DB")
-
-	dialInfo, err := mgo.ParseURL(dbAddr)
-	dialInfo.Timeout = 30 * time.Second
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	dialInfo.DialServer = func(addr *mgo.ServerAddr) (net.Conn, error) {
-		return tls.Dial("tcp", addr.String(), &tls.Config{})
-	}
-
-	mongoClient, err := repository.NewMongoClient(dialInfo)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	fmt.Println("Initialising Events Repo")
-	eventRepo, err := repository.NewMongoEventsRespository(mongoClient, "events")
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-
-	return eventRepo, nil
 }
 
 func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
@@ -149,31 +55,25 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
 	}
 
-	now := time.Now()
 	var req Request
 	err := json.Unmarshal([]byte(e.Body), &req)
 	if err != nil {
 		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
 	}
 
-	tos := req.Triggers.To
-	froms := req.Triggers.From
+	to := req.Triggers.To
+	from := req.Triggers.From
 	limit := req.Triggers.Limit
 	token := req.Triggers.Token
 
-	from, err := WithHourMinute(now, froms)
+	// Handle trigger Window
+	inTriggerWindow, err := service.InTriggerWindow(from, to)
 	if err != nil {
-		fmt.Printf("Could not parse from  %s %s\n", froms, err)
+		fmt.Printf("Error when determining if inside error window %s\n", err)
 		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
 	}
 
-	to, err := WithHourMinute(now, tos)
-	if err != nil {
-		fmt.Printf("Could not parse to  %s %s\n", tos, err)
-		return events.APIGatewayProxyResponse{StatusCode: 400}, nil
-	}
-
-	if now.Before(from) || now.After(to) {
+	if !inTriggerWindow {
 		fmt.Println("Exiting early outside of range")
 		body, _ := EmptyResponse()
 
@@ -181,16 +81,11 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 			"content-type": "application/json; charset=utf-8",
 		}}, nil
 	}
+	//
 
-	repo, err := ConnectToDatabase(os.Getenv("DB_ADDR"))
+	existingEvents, err := service.ExistingEvents(token, limit)
 	if err != nil {
-		fmt.Printf("DB connection failure %s\n", err)
-		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
-	}
-
-	existingEvents, err := repo.FindAllByTokenIdentity(token, limit)
-	if err != nil {
-		fmt.Printf("Error when FindAllByTokenIdentity %s\n", err)
+		fmt.Printf("Error getting the existing events %s\n", err)
 		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
 	}
 
@@ -207,23 +102,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 		"content-type": "application/json; charset=utf-8",
 	}}, nil
 
-	// response, err := http.Get("http://api.carbonintensity.org.uk/generation")
-	// if err != nil {
-	// 	fmt.Printf("The HTTP request failed with error %s\n", err)
-	// 	return events.APIGatewayProxyResponse{StatusCode: 500}, nil
-	// }
-
-	// jsonData, _ := ioutil.ReadAll(response.Body)
-
-	// var result Result
-	// err = json.Unmarshal(jsonData, &result)
-
-	// if err != nil {
-	// 	fmt.Printf("Error Unmarshaling json %s\n", err)
-	// 	return events.APIGatewayProxyResponse{StatusCode: 500}, nil
-	// }
-
-	// aggregation := result.Data.Mix.AggregateGreenEnergy()
+	// aggregation := service.LookupGreenEnergyPercentage
 
 	// isHigher := aggregation > 30.0
 

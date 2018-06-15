@@ -59,7 +59,13 @@ func ConnectToDatabase(dbAddr string) (repository.MockDataRepository, repository
 func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 
 	_, eventsRepo, err := ConnectToDatabase(os.Getenv("DB_ADDR"))
-	eventsRepo.ClearAllNewEvents()
+	if err != nil {
+		return events.APIGatewayProxyResponse{StatusCode: 500, Body: "\"" + err.Error() + "\""}, nil
+	}
+	err = eventsRepo.ClearAllNewEvents()
+	if err != nil {
+		return events.APIGatewayProxyResponse{StatusCode: 500, Body: "\"" + err.Error() + "\""}, nil
+	}
 	return events.APIGatewayProxyResponse{StatusCode: 200}, nil
 }
 

@@ -29,7 +29,7 @@ package:
 
 functions:
 
-  clear:
+  clear-new-events:
     handler: bin/clear-new-events
     events:
      - http:

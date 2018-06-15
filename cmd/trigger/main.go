@@ -99,7 +99,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 	fmt.Printf("triggerIdentity: %s\n", triggerIdentity)
 
 	// If there are events in the DB then return those
-	existingEvents, err := service.ExistingEvents(triggerIdentity, limit)
+	existingEvents, err := service.ExistingEventsForToday(triggerIdentity, limit)
 	if err != nil {
 		fmt.Printf("Error getting the existing events %s\n", err)
 		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
@@ -107,7 +107,7 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	fmt.Printf("existing: %s \n", existingEvents)
 
-	if len(existingEvents) != 0 {
+	if len(existingEvents) > 0 {
 		fmt.Println("Existing event count > 0 returning from DB")
 
 		body, err := BuildResponse(existingEvents)

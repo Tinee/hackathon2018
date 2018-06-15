@@ -37,14 +37,14 @@ func InTriggerWindow(from string, to string) (bool, error) {
 	return (now.After(fromParsed) && now.Before(toParsed)), nil
 }
 
-func ExistingEvents(token string, limit int) ([]domain.ResponseDetail, error) {
+func ExistingEventsForToday(token string, limit int) ([]domain.ResponseDetail, error) {
 	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
 	if err != nil {
 		fmt.Printf("DB connection failure %s\n", err)
 		return nil, err
 	}
 
-	events_, err := repo.FindAllByTokenIdentity(token, limit)
+	events_, err := repo.FindAllByTokenSinceBeginningOfDay(token, time.Now(), limit)
 	if err != nil {
 		fmt.Printf("Error when FindAllByTokenIdentity %s\n", err)
 		return nil, err
@@ -137,7 +137,16 @@ func SaveNewEvent(triggerIdentity string, isOverLimit bool, greenPercentage floa
 		TriggerIdentity: triggerIdentity,
 		IsOverLimit:     isOverLimit,
 		GreenPercentage: greenPercentage,
-		CreatedAt:       time.Now(),
+	}
+
+	hasFirstEvent, err := HasFirstEvent(triggerIdentity)
+	if err != nil {
+		fmt.Printf("HasFirstEvent failure %s\n", err)
+		return domain.ResponseDetail{}, err
+	}
+
+	if hasFirstEvent {
+		event.CreatedAt = time.Now()
 	}
 
 	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
@@ -153,6 +162,23 @@ func SaveNewEvent(triggerIdentity string, isOverLimit bool, greenPercentage floa
 	}
 
 	return saved.AsResponseDetail(), nil
+}
+
+func HasFirstEvent(triggerIdentity string) (bool, error) {
+	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
+	if err != nil {
+		fmt.Printf("DB connection failure %s\n", err)
+		return false, err
+	}
+
+	events_, err := repo.FindAllByTokenIdentity(triggerIdentity, 1)
+	if err != nil {
+		fmt.Printf("FindAllByTokenIdentity failure %s\n", err)
+		return false, err
+	}
+
+	events := *events_
+	return (len(events) > 0), nil
 }
 
 // Privates

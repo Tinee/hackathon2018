@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Tinee/hackathon18lumohours/auth"
+	auth "github.com/Tinee/hackathon2018/auth"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"

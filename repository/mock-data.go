@@ -3,6 +3,8 @@ package repository
 import (
 	"log"
 
+	"github.com/globalsign/mgo"
+
 	"github.com/Tinee/hackathon2018/domain"
 	"github.com/globalsign/mgo/bson"
 )
@@ -56,6 +58,10 @@ func (repo *mongoMockDataRepository) Get() (*domain.MockData, error) {
 
 	var doc domain.MockData
 	err := coll.Find(bson.M{}).One(&doc)
+
+	if err == mgo.ErrNotFound {
+		return &domain.MockData{}, nil
+	}
 
 	if err != nil {
 		return nil, err

@@ -18,47 +18,105 @@ import (
 	"github.com/globalsign/mgo"
 )
 
-// from as 12:00 to as 12:30
-func InTriggerWindow(from string, to string) (bool, error) {
+func HandleEvent(from string, to string, triggerIdentity string, limit int) (*[]domain.Event, error) {
+	err := EnsureInitialExists(triggerIdentity)
+	if err != nil {
+		return nil, err
+	}
+
+	alreadyExistsForToday, err := AlreadyExistsForToday(triggerIdentity)
+	if err != nil {
+		return nil, err
+	}
+	if alreadyExistsForToday {
+		return FindAll(triggerIdentity, limit)
+	}
+
+	withinTimeRange, err := IsWithinTimeWindow(from, to)
+	if err != nil {
+		return nil, err
+	}
+	if !withinTimeRange {
+		return FindAll(triggerIdentity, limit)
+	}
+
+	// time.Now needs to be replaced
+	greenPercetageNow, err := LookupGreenEnergyPercentage(time.Now())
+	if greenPercetageNow > 30.0 {
+		SaveNewEvent(triggerIdentity, greenPercetageNow)
+	}
+
+	return FindAll(triggerIdentity, limit)
+}
+
+func EnsureInitialExists(triggerIdentity string) error {
+	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
+	if err != nil {
+		return err
+	}
+
+	events_, err := repo.FindAllByTokenIdentity(triggerIdentity, 1)
+	if err != nil {
+		return err
+	}
+	events := *events_
+
+	if len(events) == 0 {
+		fmt.Println("Initial event missing ")
+
+		event := domain.Event{
+			TriggerIdentity: triggerIdentity,
+			IsOverLimit:     false,
+			GreenPercentage: 0.0,
+		}
+
+		_, err := repo.Insert(event)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func AlreadyExistsForToday(triggerIdentity string) (bool, error) {
+	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
+	if err != nil {
+		return false, err
+	}
+
+	events_, err := repo.FindAllByTokenSinceBeginningOfDay(triggerIdentity, time.Now(), 1)
+	if err != nil {
+		return false, err
+	}
+	events := *events_
+
+	return len(events) > 0, nil
+}
+
+func FindAll(tokenIdentity string, limit int) (*[]domain.Event, error) {
+	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
+	if err != nil {
+		return nil, err
+	}
+
+	return repo.FindAllByTokenIdentity(tokenIdentity, limit)
+}
+
+func IsWithinTimeWindow(from string, to string) (bool, error) {
 	now := time.Now()
 
 	fromParsed, err := withHourMinute(now, from)
 	if err != nil {
-		fmt.Printf("Could not parse from  %s %s\n", from, err)
 		return false, err
 	}
 
 	toParsed, err := withHourMinute(now, to)
 	if err != nil {
-		fmt.Printf("Could not parse to  %s %s\n", to, err)
 		return false, err
 	}
 
 	return (now.After(fromParsed) && now.Before(toParsed)), nil
-}
-
-func ExistingEventsForToday(token string, limit int) ([]domain.ResponseDetail, error) {
-	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
-	if err != nil {
-		fmt.Printf("DB connection failure %s\n", err)
-		return nil, err
-	}
-
-	events_, err := repo.FindAllByTokenSinceBeginningOfDay(token, time.Now(), limit)
-	if err != nil {
-		fmt.Printf("Error when FindAllByTokenIdentity %s\n", err)
-		return nil, err
-	}
-
-	events := *events_
-	fmt.Println(events)
-
-	details := make([]domain.ResponseDetail, len(events))
-	for i, event := range events {
-		details[i] = event.AsResponseDetail()
-	}
-
-	return details, nil
 }
 
 func LookupGreenEnergyPercentage(now time.Time) (float32, error) {
@@ -132,54 +190,118 @@ func lookupMockGreenEnergyPercentage(now time.Time) (float32, error) {
 	return 0, errors.New("could not find a valid time range in the mock data")
 }
 
-func SaveNewEvent(triggerIdentity string, isOverLimit bool, greenPercentage float32) (domain.ResponseDetail, error) {
+func SaveNewEvent(triggerIdentity string, greenPercentage float32) error {
 	event := domain.Event{
 		TriggerIdentity: triggerIdentity,
-		IsOverLimit:     isOverLimit,
+		IsOverLimit:     true, // As we only call this when saving a normal trigger
 		GreenPercentage: greenPercentage,
-	}
-
-	hasFirstEvent, err := HasFirstEvent(triggerIdentity)
-	if err != nil {
-		fmt.Printf("HasFirstEvent failure %s\n", err)
-		return domain.ResponseDetail{}, err
-	}
-
-	if hasFirstEvent {
-		event.CreatedAt = time.Now()
+		CreatedAt:       time.Now(),
 	}
 
 	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
 	if err != nil {
-		fmt.Printf("DB connection failure %s\n", err)
-		return domain.ResponseDetail{}, err
+		return err
 	}
 
-	saved, err := repo.Insert(event)
-	if err != nil {
-		fmt.Printf("Error Inserting into DB %s\n", err)
-		return domain.ResponseDetail{}, err
-	}
-
-	return saved.AsResponseDetail(), nil
+	_, err = repo.Insert(event)
+	return err
 }
 
-func HasFirstEvent(triggerIdentity string) (bool, error) {
-	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
-	if err != nil {
-		fmt.Printf("DB connection failure %s\n", err)
-		return false, err
-	}
+// // Depricated
+// func ExistingEventsForToday(token string, limit int) ([]domain.ResponseDetail, error) {
+// 	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
+// 	if err != nil {
+// 		fmt.Printf("DB connection failure %s\n", err)
+// 		return nil, err
+// 	}
 
-	events_, err := repo.FindAllByTokenIdentity(triggerIdentity, 1)
-	if err != nil {
-		fmt.Printf("FindAllByTokenIdentity failure %s\n", err)
-		return false, err
-	}
+// 	events_, err := repo.FindAllByTokenSinceBeginningOfDay(token, time.Now(), limit)
+// 	if err != nil {
+// 		fmt.Printf("Error when FindAllByTokenIdentity %s\n", err)
+// 		return nil, err
+// 	}
 
-	events := *events_
-	return (len(events) > 0), nil
-}
+// 	events := *events_
+// 	fmt.Println(events)
+
+// 	details := make([]domain.ResponseDetail, len(events))
+// 	for i, event := range events {
+// 		details[i] = event.AsResponseDetail()
+// 	}
+
+// 	return details, nil
+// }
+
+// // Depricated
+// func LookupGreenEnergyPercentage() (float32, error) {
+// 	response, err := http.Get("http://api.carbonintensity.org.uk/generation")
+// 	if err != nil {
+// 		fmt.Printf("The HTTP request failed with error %s\n", err)
+// 		return -1, err
+// 	}
+
+// 	jsonData, _ := ioutil.ReadAll(response.Body)
+
+// 	var result domain.GenerationResult
+// 	err = json.Unmarshal(jsonData, &result)
+// 	if err != nil {
+// 		fmt.Printf("Error Unmarshaling json %s\n", err)
+// 		return -1, err
+// 	}
+
+// 	return result.Data.Mix.AggregateGreenEnergy(), nil
+// }
+
+// // Depricated
+// func SaveNewEventOld(triggerIdentity string, isOverLimit bool, greenPercentage float32) (domain.ResponseDetail, error) {
+// 	event := domain.Event{
+// 		TriggerIdentity: triggerIdentity,
+// 		IsOverLimit:     isOverLimit,
+// 		GreenPercentage: greenPercentage,
+// 	}
+
+// 	hasFirstEvent, err := HasFirstEvent(triggerIdentity)
+// 	if err != nil {
+// 		fmt.Printf("HasFirstEvent failure %s\n", err)
+// 		return domain.ResponseDetail{}, err
+// 	}
+
+// 	if hasFirstEvent {
+// 		event.CreatedAt = time.Now()
+// 	}
+
+// 	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
+// 	if err != nil {
+// 		fmt.Printf("DB connection failure %s\n", err)
+// 		return domain.ResponseDetail{}, err
+// 	}
+
+// 	saved, err := repo.Insert(event)
+// 	if err != nil {
+// 		fmt.Printf("Error Inserting into DB %s\n", err)
+// 		return domain.ResponseDetail{}, err
+// 	}
+
+// 	return saved.AsResponseDetail(), nil
+// }
+
+// // Depricated
+// func HasFirstEvent(triggerIdentity string) (bool, error) {
+// 	repo, err := connectToDatabase(os.Getenv("DB_ADDR"))
+// 	if err != nil {
+// 		fmt.Printf("DB connection failure %s\n", err)
+// 		return false, err
+// 	}
+
+// 	events_, err := repo.FindAllByTokenIdentity(triggerIdentity, 1)
+// 	if err != nil {
+// 		fmt.Printf("FindAllByTokenIdentity failure %s\n", err)
+// 		return false, err
+// 	}
+
+// 	events := *events_
+// 	return (len(events) > 0), nil
+// }
 
 // Privates
 

@@ -1,14 +1,21 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/Tinee/hackathon2018/asdasd"
+	"github.com/Tinee/hackathon2018/repository"
+	"github.com/globalsign/mgo"
+	"github.com/tinee/hackathon2018/domain"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -17,19 +24,11 @@ import (
 // Request from IFTTT
 type Request struct {
 	Triggers struct {
-		From string `json:"hours_start"`
-		To   string `json:"hours_stop"`
+		Token string `json:"trigger_identity"`
+		From  string `json:"hours_start"`
+		To    string `json:"hours_stop"`
+		Limit int    `json:"limit"`
 	} `json:"triggerFields"`
-}
-
-// Response to IFTTT
-type Response struct {
-	Data []ResponseDetail `json:"data"`
-}
-
-type ResponseDetail struct {
-	IsOverLimit     bool    `json:"isOverLimit"`
-	GreenPercentage float32 `json:"greenPercentage"`
 }
 
 type Result struct {
@@ -79,21 +78,59 @@ func WithHourMinute(now time.Time, hmString string) (time.Time, error) {
 
 // BuildResponse builds response to IFTTT
 func BuildResponse(isOverLimit bool, greenPercentage float32) ([]byte, error) {
-	return json.Marshal(Response{
-		Data: []ResponseDetail{
-			ResponseDetail{
+
+	return json.Marshal(domain.Response{
+		Data: []domain.ResponseDetail{
+			domain.ResponseDetail{
 				IsOverLimit:     isOverLimit,
 				GreenPercentage: greenPercentage,
+				CreatedAt:       time.Now().UTC().Format(time.RFC3339),
+				Meta: domain.Meta{
+					Id:        "14b9-1fd2-acaa-5df5",
+					Timestamp: int(time.Now().Unix()),
+				},
 			},
 		},
 	})
 }
 
+func ConnectToDatabase(dbAddr string) (repository.EventRepository, error) {
+	if dbAddr == "" {
+		fmt.Println("No DB_ADDR provided")
+		return nil, errors.New("No DB_ADDR provided")
+	}
+
+	fmt.Println("Connecting to DB")
+
+	dialInfo, err := mgo.ParseURL(dbAddr)
+	dialInfo.Timeout = 30 * time.Second
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	dialInfo.DialServer = func(addr *mgo.ServerAddr) (net.Conn, error) {
+		return tls.Dial("tcp", addr.String(), &tls.Config{})
+	}
+
+	mongoClient, err := repository.NewMongoClient(dialInfo)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	fmt.Println("Initialising Events Repo")
+	eventRepo, err := repository.NewMongoEventsRespository(mongoClient, "events")
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	return eventRepo, nil
+}
+
 func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	fmt.Println("Starting the application...")
-	// if errResp := auth.ValidateIFTTTRequest(e); errResp != nil {
-	// 	return *errResp, nil
-	// }
 
 	errr := auth.ValidateIFTTTRequest(e)
 	if errr != nil {
@@ -109,9 +146,8 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	tos := req.Triggers.To
 	froms := req.Triggers.From
-
-	fmt.Println("hejxsan", froms)
-	fmt.Println("hejsxan", tos)
+	limit := req.Triggers.Limit
+	token := req.Triggers.Token
 
 	from, err := WithHourMinute(now, froms)
 	if err != nil {
@@ -127,10 +163,26 @@ func Handle(e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, er
 
 	if now.Before(from) || now.After(to) {
 		fmt.Println("Exiting early outside of range")
-		body, _ := BuildResponse(false, 0.0)
+		body, _ := BuildResponse(false, 0.1)
 
-		return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200}, nil
+		return events.APIGatewayProxyResponse{Body: string(body), StatusCode: 200, Headers: map[string]string{
+			"content-type": "application/json; charset=utf-8",
+		}}, nil
 	}
+
+	repo, err := ConnectToDatabase(os.Getenv("DB_ADDR"))
+	if err != nil {
+		fmt.Printf("DB connection failure %s\n", err)
+		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
+	}
+
+	existingEvents, err := repo.FindAllByTokenIdentity(token, limit)
+	if err != nil {
+		fmt.Printf("Error when FindAllByTokenIdentity %s\n", err)
+		return events.APIGatewayProxyResponse{StatusCode: 500}, nil
+	}
+
+	fmt.Println(existingEvents)
 
 	response, err := http.Get("http://api.carbonintensity.org.uk/generation")
 	if err != nil {
